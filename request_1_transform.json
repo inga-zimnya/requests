@@ -1,0 +1,21 @@
+{
+    "id": 10,
+    "jsonrpc": "2.0",
+    "method": "bevy/query",
+    "params": {
+        "data": {
+            "components": [
+                "bevy_transform::components::transform::Transform"
+            ],
+            "has": [
+                "hotline_miami_like::player::movement::Movement",
+                "hotline_miami_like::player::death::Dead"
+            ],
+            "option": []
+        },
+        "filter": {
+            "with": [],
+            "without": []
+        }
+    }
+}
