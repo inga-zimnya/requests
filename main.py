@@ -59,7 +59,7 @@ def fetch_game_state() -> ParsedGameState:
         "method": "bevy/query",
         "params": {
             "data": {
-                "components": ["game_state::GameState"],
+                "components": ["hotline_miami_like::ai::game_state::GameState"],
                 "has": [],
                 "option": []
             },
@@ -78,7 +78,7 @@ def fetch_game_state() -> ParsedGameState:
         if "result" not in data or not data["result"]:
             raise ValueError("No game state in response")
 
-        raw_state = data["result"][0]
+        raw_state = data["result"][0]['components']['hotline_miami_like::ai::game_state::GameState']
 
         # Convert to structured format
         return ParsedGameState(
