@@ -1,157 +1,117 @@
 import requests
 import json
 import time
+from typing import Dict, List, TypedDict, Literal, Tuple  # Added Tuple here
+from dataclasses import dataclass
 
-URL = "http://127.0.0.1:15702/"
-REQUEST_PAYLOAD = json.dumps({
-   "id": 10,
-   "jsonrpc": "2.0",
-   "method": "bevy/query",
-   "params": {
-       "data": {
-           "components": ["hotline_miami_like::ai::game_state::GameState"],
-           "has": [],  # Full module path!
-           "option": []
-       },
-       "filter": {
-           "with": [],  # Remove empty string
-           "without": []
-       }
-   }
-})
+# Type definitions matching your Rust GameStateEncoding
+GameStateEncoding = Literal[
+    'Empty', 'Floor', 'Wall', 'Glass',
+    'Crate', 'Pickup', 'Bullet', 'Characters'
+]
 
-POLL_INTERVAL = 1  # Time in seconds between requests
 
-def parse_game_state(json_data):
-    """
-    Parses the game state information from a JSON string.
+class GameStateLayer(TypedDict):
+    layer_0: List[List[GameStateEncoding]]  # Floor/empty
+    layer_1: List[List[GameStateEncoding]]  # Walls
+    layer_2: List[List[GameStateEncoding]]  # Dynamic entities
 
-    Args:
-        json_data: A JSON string representing the game state.  This should
-            correspond to the `GameState` struct in the Rust code.  It's
-            assumed to be a serialized representation of:
-            {
-                "state": [[[<GameStateEncoding>; MAX_MAP_PIXELS_SIZE.1]; MAX_MAP_PIXELS_SIZE.0]; TOTAL_LAYERS],
-                "ai_state": [bool; 10],
+
+class GameStateResponse(TypedDict):
+    state: GameStateLayer
+    ai_state: List[bool]
+
+
+@dataclass
+class ParsedGameState:
+    """Structured representation of the game state"""
+    floors: List[List[GameStateEncoding]]
+    walls: List[List[GameStateEncoding]]
+    entities: List[List[GameStateEncoding]]
+    ai_states: Dict[int, bool]
+
+    @property
+    def player_positions(self) -> List[Tuple[int, int]]:
+        """Returns (x,y) positions of all characters"""
+        positions = []
+        for y, row in enumerate(self.entities):
+            for x, cell in enumerate(row):
+                if cell == 'Characters':
+                    positions.append((x, y))
+        return positions
+
+    @property
+    def pickup_positions(self) -> List[Tuple[int, int]]:
+        """Returns (x,y) positions of all pickups"""
+        positions = []
+        for y, row in enumerate(self.entities):
+            for x, cell in enumerate(row):
+                if cell == 'Pickup':
+                    positions.append((x, y))
+        return positions
+
+
+def fetch_game_state() -> ParsedGameState:
+    """Fetches and parses the game state from the Bevy server"""
+    payload = {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "bevy/query",
+        "params": {
+            "data": {
+                "components": ["game_state::GameState"],
+                "has": [],
+                "option": []
+            },
+            "filter": {
+                "with": [],
+                "without": []
             }
-            Where:
-                - <GameStateEncoding> is a string representing the enum variant
-                  (e.g., "Empty", "Floor", "Wall", etc.).
-                - MAX_MAP_PIXELS_SIZE is (160, 112)
-                - TOTAL_LAYERS is 3
-
-    Returns:
-        A dictionary containing the parsed game state:
-        {
-            "state": [[[str; 112]; 160]; 3],  # 3D list of GameStateEncoding strings
-            "ai_state": [bool; 10]            # List of boolean values
         }
-        Returns None if parsing fails.
-    """
+    }
+
     try:
-        data = json.loads(json_data)
+        response = requests.post("http://127.0.0.1:15702/", json=payload)
+        response.raise_for_status()
+        data = response.json()
 
-        # Validate data structure (very important for type safety)
-        if not isinstance(data, dict):
-            print("Error: Game state data is not a dictionary.")
-            return None
+        if "result" not in data or not data["result"]:
+            raise ValueError("No game state in response")
 
-        if "state" not in data or "ai_state" not in data:
-            print("Error: 'state' or 'ai_state' key missing from game state data.")
-            return None
+        raw_state = data["result"][0]
 
-        state_data = data["state"]
-        ai_state_data = data["ai_state"]
+        # Convert to structured format
+        return ParsedGameState(
+            floors=raw_state["state"][0],
+            walls=raw_state["state"][1],
+            entities=raw_state["state"][2],
+            ai_states={
+                idx: state
+                for idx, state in enumerate(raw_state["ai_state"])
+                if state  # Only include active states
+            }
+        )
 
-        # Validate the 'state' field
-        if not isinstance(state_data, list):
-            print("Error: 'state' is not a list.")
-            return None
-
-        if len(state_data) != 3:  # TOTAL_LAYERS
-            print(f"Error: 'state' should have 3 layers, but has {len(state_data)}.")
-            return None
-
-        for layer in state_data:
-            if not isinstance(layer, list):
-                print("Error: A layer within 'state' is not a list.")
-                return None
-            if len(layer) != 160:  # MAX_MAP_PIXELS_SIZE.0
-                print(f"Error: Layer should have 160 rows, but has {len(layer)}.")
-                return None
-            for row in layer:
-                if not isinstance(row, list):
-                    print("Error: A row within a layer is not a list.")
-                    return None
-                if len(row) != 112:  # MAX_MAP_PIXELS_SIZE.1
-                    print(f"Error: Row should have 112 columns, but has {len(row)}.")
-                    return None
-                for cell in row:
-                    if not isinstance(cell, str):
-                        print("Error: A cell within a row is not a string (GameStateEncoding).")
-                        return None
-
-        # Validate the 'ai_state' field
-        if not isinstance(ai_state_data, list):
-            print("Error: 'ai_state' is not a list.")
-            return None
-
-        if len(ai_state_data) != 10:
-            print(f"Error: 'ai_state' should have 10 elements, but has {len(ai_state_data)}.")
-            return None
-
-        for val in ai_state_data:
-            if not isinstance(val, bool):
-                print("Error: An element in 'ai_state' is not a boolean.")
-                return None
-
-
-        return {
-            "state": state_data,
-            "ai_state": ai_state_data
-        }
-
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
-        return None
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
-        return None
+        print(f"Error fetching game state: {e}")
+        raise
 
 
-def fetch_game_data():
-    """Fetches and parses game data in a loop."""
+# Example usage
+if __name__ == "__main__":
     while True:
         try:
-            response = requests.post(url=URL, data=REQUEST_PAYLOAD)
-            response.raise_for_status()  # Check for HTTP errors
-            data = response.json()
+            game_state = fetch_game_state()
 
-            # Assuming the game state is under a specific key in the response, e.g., "game_state"
-            if "game_state" in data:
-                game_state_json = json.dumps(data["game_state"])  # Convert to JSON string
-                parsed_game_state = parse_game_state(game_state_json)
+            # Print some debug info
+            print(f"\nPlayers found at: {game_state.player_positions}")
+            print(f"Pickups available: {len(game_state.pickup_positions)}")
+            print(f"Active AI states: {game_state.ai_states}")
 
-                if parsed_game_state:
-                    print("Successfully parsed game state:")
-                    # Do something with the parsed game state, e.g.,
-                    # Access specific elements, print the state, etc.
-                    # print(parsed_game_state["state"][0][0][0])  # Access a specific game state encoding
-                    print(f"AI State: {parsed_game_state['ai_state']}")
-                else:
-                    print("Failed to parse game state.")
+        except KeyboardInterrupt:
+            print("Stopping game state monitor")
+            break
+        except Exception as e:
+            print(f"Error: {e}")
 
-            else:
-                print("No 'game_state' found in the response:", data)
-
-        except requests.exceptions.RequestException as e:
-            print(f"Network error: {e}")
-        except json.JSONDecodeError:
-            print("Error decoding JSON response from the server.") # Server Response
-
-        time.sleep(POLL_INTERVAL)
-
-
-if __name__ == "__main__":
-    fetch_game_data()
-
+        time.sleep(1)  # Polling interval
