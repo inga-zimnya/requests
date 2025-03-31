@@ -31,14 +31,16 @@ class ParsedGameState:
     ai_states: Dict[int, bool]
 
     @property
-    def player_positions(self) -> List[Tuple[int, int]]:
-        """Returns (x,y) positions of all characters"""
-        positions = []
+    def player_positions(self) -> Dict[str, List[Tuple[int, int]]]:  # Changed return type
+        """Returns a dictionary of (x,y) positions for each player"""
+        player_positions: Dict[str, List[Tuple[int, int]]] = {}  # Initialize an empty dictionary
         for y, row in enumerate(self.entities):
             for x, cell in enumerate(row):
-                if cell == 'Characters':
-                    positions.append((x, y))
-        return positions
+                if cell.startswith('Character'):  # Assuming cells are named "Player1", "Player2", etc.
+                    if cell not in player_positions:
+                        player_positions[cell] = []  # Initialize a list for that player if it is not present in the dictionary.
+                    player_positions[cell].append((x, y))
+        return player_positions
 
     @property
     def pickup_positions(self) -> List[Tuple[int, int]]:
@@ -59,7 +61,7 @@ def fetch_game_state() -> ParsedGameState:
         "method": "bevy/query",
         "params": {
             "data": {
-                "components": ["game_state::GameState"],
+                "components": ["hotline_miami_like::ai::game_state::GameState"],
                 "has": [],
                 "option": []
             },
@@ -78,7 +80,7 @@ def fetch_game_state() -> ParsedGameState:
         if "result" not in data or not data["result"]:
             raise ValueError("No game state in response")
 
-        raw_state = data["result"][0]
+        raw_state = data["result"][0]['components']['hotline_miami_like::ai::game_state::GameState']
 
         # Convert to structured format
         return ParsedGameState(
@@ -104,8 +106,8 @@ if __name__ == "__main__":
             game_state = fetch_game_state()
 
             # Print some debug info
-            print(f"\nPlayers found at: {game_state.player_positions}")
-            print(f"Pickups available: {len(game_state.pickup_positions)}")
+            print(f"Player positions: {game_state.player_positions}")
+            print(f"Pickup positions: {game_state.pickup_positions}")
             print(f"Active AI states: {game_state.ai_states}")
 
         except KeyboardInterrupt:
