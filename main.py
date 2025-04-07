@@ -1,10 +1,21 @@
 import requests
 import json
 import time
+import math
 from typing import Dict, List, TypedDict, Literal, Tuple
 from dataclasses import dataclass
 
-# Type definitions matching your Rust GameStateEncoding
+# Game Constants (from game_state.rs)
+ONE_PIXEL_DISTANCE = 4.0  # 1 pixel = 4 game units
+MAX_MAP_PIXELS_SIZE = (160, 112)  # (width, height) in pixels
+DEBUG_UI_START_POS = (-100.0, 100.0)  # Debug view starting position
+TOTAL_LAYERS = 3
+
+# Derived Constants
+MAP_WIDTH_UNITS = MAX_MAP_PIXELS_SIZE[0] * ONE_PIXEL_DISTANCE  # 640 units
+MAP_HEIGHT_UNITS = MAX_MAP_PIXELS_SIZE[1] * ONE_PIXEL_DISTANCE  # 448 units
+
+# Type definitions
 GameStateEncoding = Literal[
     'Empty', 'Floor', 'Wall', 'Glass',
     'Crate', 'Pickup', 'Bullet', 'Characters'
@@ -110,8 +121,16 @@ class ParsedGameState:
                     positions.append((x, y))
         return positions
 
-    def show_ascii_map(self, width: int = 20, height: int = 10) -> str:
-        """Generate an ASCII representation of the game map"""
+    def show_ascii_map(self, view_center: Tuple[float, float] = None,
+                       view_width: float = 80.0, view_height: float = 56.0,
+                       cell_size: float = 2.0) -> str:
+        """
+        Generate a precise ASCII representation of the game map
+        - view_center: (x,y) center position in game units
+        - view_width: View width in game units (default 80 = 1/8 map)
+        - view_height: View height in game units (default 56 = 1/8 map)
+        - cell_size: Size of each ASCII cell in game units (default 2 = half-pixel)
+        """
         symbols = {
             'Empty': ' ',
             'Floor': '.',
@@ -123,18 +142,47 @@ class ParsedGameState:
             'Characters': '☻'
         }
 
+        # Set default view center to debug start position + offset
+        if view_center is None:
+            view_center = (DEBUG_UI_START_POS[0] + view_width / 2,
+                           DEBUG_UI_START_POS[1] - view_height / 2)
+
+        # Calculate array dimensions
+        cells_x = math.ceil(view_width / cell_size)
+        cells_y = math.ceil(view_height / cell_size)
+
+        # Convert world coordinates to array indices
+        def world_to_array(x: float, y: float) -> Tuple[int, int]:
+            """Convert game world coordinates to array indices"""
+            arr_x = int((x - DEBUG_UI_START_POS[0]) * len(self.entities[0]) / MAP_WIDTH_UNITS)
+            arr_y = int((DEBUG_UI_START_POS[1] - y) * len(self.entities) / MAP_HEIGHT_UNITS)
+            return (
+                max(0, min(len(self.entities[0]) - 1, arr_x)),
+                max(0, min(len(self.entities) - 1, arr_y))
+            )
+
         map_str = ""
-        for y in range(min(height, len(self.entities))):
-            for x in range(min(width, len(self.entities[0]))):
-                # Check entities first, then walls, then floors
-                if self.entities[y][x] != 'Empty':
-                    map_str += symbols.get(self.entities[y][x], '?')
-                elif self.walls[y][x] != 'Empty':
-                    map_str += symbols.get(self.walls[y][x], '?')
+        for cell_y in range(cells_y):
+            world_y = view_center[1] + (cell_y * cell_size) - view_height / 2
+            for cell_x in range(cells_x):
+                world_x = view_center[0] + (cell_x * cell_size) - view_width / 2
+                arr_x, arr_y = world_to_array(world_x, world_y)
+
+                # Sample the cell (entities > walls > floors)
+                if self.entities[arr_y][arr_x] != 'Empty':
+                    map_str += symbols.get(self.entities[arr_y][arr_x], '?')
+                elif self.walls[arr_y][arr_x] != 'Empty':
+                    map_str += symbols.get(self.walls[arr_y][arr_x], '?')
                 else:
-                    map_str += symbols.get(self.floors[y][x], '?')
+                    map_str += symbols.get(self.floors[arr_y][arr_x], '?')
             map_str += "\n"
-        return map_str
+
+        return (f"\n=== Map View ===\n"
+                f"Center: {view_center}\n"
+                f"Size: {view_width}x{view_height} game units\n"
+                f"Resolution: {cells_x}x{cells_y} cells\n"
+                f"Cell size: {cell_size} units\n\n"
+                f"{map_str}")
 
 
 def fetch_game_state() -> ParsedGameState:
@@ -166,7 +214,6 @@ def fetch_game_state() -> ParsedGameState:
 
         raw_state = data["result"][0]['components']['hotline_miami_like::ai::game_state::GameState']
 
-        # Convert to structured format
         return ParsedGameState(
             floors=raw_state["state"][0],
             walls=raw_state["state"][1],
@@ -174,7 +221,7 @@ def fetch_game_state() -> ParsedGameState:
             ai_states={
                 idx: state
                 for idx, state in enumerate(raw_state["ai_state"])
-                if state  # Only include active states
+                if state
             }
         )
 
@@ -183,13 +230,11 @@ def fetch_game_state() -> ParsedGameState:
         raise
 
 
-# Example usage
 if __name__ == "__main__":
     while True:
         try:
             game_state = fetch_game_state()
 
-            # Print debug info for all components
             print("\n=== Game State ===")
             print(f"Players: {len(game_state.player_positions)} at {game_state.player_positions}")
             print(f"Pickups: {len(game_state.pickup_positions)} at {game_state.pickup_positions}")
@@ -201,13 +246,21 @@ if __name__ == "__main__":
             print(f"Floor tiles: {len(game_state.floor_positions)}")
             print(f"Active AI states: {game_state.ai_states}")
 
-            # Show ASCII map visualization
-            print("\nMap Preview (20x10):")
+            # Default debug view
             print(game_state.show_ascii_map())
 
-            # Optional: Show larger map view (uncomment if needed)
-            # print("\nFull Map View:")
-            # print(game_state.show_ascii_map(width=40, height=20))
+            # Player-centered view if available
+            if game_state.player_positions:
+                player_x, player_y = game_state.player_positions[0]
+                player_world_x = DEBUG_UI_START_POS[0] + (player_x * MAP_WIDTH_UNITS / len(game_state.entities[0]))
+                player_world_y = DEBUG_UI_START_POS[1] - (player_y * MAP_HEIGHT_UNITS / len(game_state.entities))
+
+                print(game_state.show_ascii_map(
+                    view_center=(player_world_x, player_world_y),
+                    view_width=160.0,
+                    view_height=112.0,
+                    cell_size=1.0  # High-detail view
+                ))
 
         except KeyboardInterrupt:
             print("\nStopping game state monitor")
@@ -215,4 +268,4 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error: {e}")
 
-        time.sleep(1)  # Polling interval
+        time.sleep(1)
