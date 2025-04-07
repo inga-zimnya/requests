@@ -110,6 +110,32 @@ class ParsedGameState:
                     positions.append((x, y))
         return positions
 
+    def show_ascii_map(self, width: int = 20, height: int = 10) -> str:
+        """Generate an ASCII representation of the game map"""
+        symbols = {
+            'Empty': ' ',
+            'Floor': '.',
+            'Wall': '#',
+            'Glass': '░',
+            'Crate': '■',
+            'Pickup': 'P',
+            'Bullet': '•',
+            'Characters': '☻'
+        }
+
+        map_str = ""
+        for y in range(min(height, len(self.entities))):
+            for x in range(min(width, len(self.entities[0]))):
+                # Check entities first, then walls, then floors
+                if self.entities[y][x] != 'Empty':
+                    map_str += symbols.get(self.entities[y][x], '?')
+                elif self.walls[y][x] != 'Empty':
+                    map_str += symbols.get(self.walls[y][x], '?')
+                else:
+                    map_str += symbols.get(self.floors[y][x], '?')
+            map_str += "\n"
+        return map_str
+
 
 def fetch_game_state() -> ParsedGameState:
     """Fetches and parses the game state from the Bevy server"""
@@ -157,32 +183,6 @@ def fetch_game_state() -> ParsedGameState:
         raise
 
 
-def show_ascii_map(self, width: int = 20, height: int = 10) -> str:
-    """Generate an ASCII representation of the game map"""
-    symbols = {
-        'Empty': ' ',
-        'Floor': '.',
-        'Wall': '#',
-        'Glass': '░',
-        'Crate': '■',
-        'Pickup': 'P',
-        'Bullet': '•',
-        'Characters': '☻'
-    }
-
-    map_str = ""
-    for y in range(min(height, len(self.entities))):
-        for x in range(min(width, len(self.entities[0]))):
-            # Check entities first, then walls, then floors
-            if self.entities[y][x] != 'Empty':
-                map_str += symbols.get(self.entities[y][x], '?')
-            elif self.walls[y][x] != 'Empty':
-                map_str += symbols.get(self.walls[y][x], '?')
-            else:
-                map_str += symbols.get(self.floors[y][x], '?')
-        map_str += "\n"
-    return map_str
-
 # Example usage
 if __name__ == "__main__":
     while True:
@@ -201,8 +201,16 @@ if __name__ == "__main__":
             print(f"Floor tiles: {len(game_state.floor_positions)}")
             print(f"Active AI states: {game_state.ai_states}")
 
+            # Show ASCII map visualization
+            print("\nMap Preview (20x10):")
+            print(game_state.show_ascii_map())
+
+            # Optional: Show larger map view (uncomment if needed)
+            # print("\nFull Map View:")
+            # print(game_state.show_ascii_map(width=40, height=20))
+
         except KeyboardInterrupt:
-            print("Stopping game state monitor")
+            print("\nStopping game state monitor")
             break
         except Exception as e:
             print(f"Error: {e}")
