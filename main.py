@@ -294,9 +294,9 @@ def print_player_details(player: PlayerState, index: int):
 
 def show_ascii_map(game_state: ParsedGameState,
                    view_center: Tuple[float, float] = None,
-                   view_width: float = 80.0,
-                   view_height: float = 56.0,
-                   cell_size: float = 2.0) -> str:
+                   view_width: float = 160.0,
+                   view_height: float = 112.0,
+                   cell_size: float = 1.0) -> str:
     """
     Generate ASCII representation of the game map
     - view_center: (x,y) center position in game units
@@ -340,14 +340,29 @@ def show_ascii_map(game_state: ParsedGameState,
             world_x = view_center[0] + (cell_x * cell_size) - view_width / 2
             arr_x, arr_y = world_to_array(world_x, world_y)
 
-            # Sample the cell (entities > walls > floors)
-            if game_state.entities[arr_y][arr_x] != 'Empty':
-                map_str += symbols.get(game_state.entities[arr_y][arr_x], '?')
-            elif game_state.walls[arr_y][arr_x] != 'Empty':
-                map_str += symbols.get(game_state.walls[arr_y][arr_x], '?')
+            # Check layers in proper order (entities > walls > floors)
+            entity = game_state.entities[arr_y][arr_x]
+            wall = game_state.walls[arr_y][arr_x]
+            floor = game_state.floors[arr_y][arr_x]
+
+            if entity != 'Empty':
+                map_str += symbols.get(entity, '?')
+            elif wall != 'Empty':
+                map_str += symbols.get(wall, '?')
             else:
-                map_str += symbols.get(game_state.floors[arr_y][arr_x], '?')
+                map_str += symbols.get(floor, '?')
         map_str += "\n"
+
+        # Add coordinate grid markers every 10 units
+    grid_markers = "   " + "".join(f"{x:<10}" for x in range(0, int(view_width), 10))
+    map_str = f"Y\\X {grid_markers[:len(map_str.split('\n')[0])]}\n" + map_str
+
+    # Add Y-axis markers
+    y_markers = range(int(view_center[1] + view_height / 2),
+                      int(view_center[1] - view_height / 2), -10)
+    for i, line in enumerate(map_str.split('\n')[1:]):
+        if i % 10 == 0 and i // 10 < len(y_markers):
+            map_str = map_str.replace(line, f"{y_markers[i // 10]:3}" + line[3:], 1)
 
     return map_str
 
@@ -369,7 +384,14 @@ if __name__ == "__main__":
                 print_player_details(player, idx)
 
             print("\nMap Overview:")
-            print(show_ascii_map(game_state))
+            print(show_ascii_map(
+                game_state,
+                view_center=(DEBUG_UI_START_POS[0] + MAP_WIDTH_UNITS / 2,
+                             DEBUG_UI_START_POS[1] - MAP_HEIGHT_UNITS / 2),
+                view_width=MAP_WIDTH_UNITS,
+                view_height=MAP_HEIGHT_UNITS,
+                cell_size=4.0  # 1 cell = 1 pixel (4 game units)
+            ))
 
             # Show detailed view around first player if available
             if game_state.players:
@@ -378,8 +400,8 @@ if __name__ == "__main__":
                 print(show_ascii_map(
                     game_state,
                     view_center=first_player['position'],
-                    view_width=40.0,
-                    view_height=28.0,
+                    view_width=160.0,
+                    view_height=112.0,
                     cell_size=1.0
                 ))
 
