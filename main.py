@@ -1,43 +1,57 @@
+# -*- coding: utf-8 -*-
 import requests
 import json
 import time
 import math
 from typing import Dict, List, TypedDict, Literal, Tuple, Optional, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+import os # For screen clearing
+import traceback # For detailed error printing
 
-# Game Constants (from game_state.rs)
-ONE_PIXEL_DISTANCE = 4.0  # 1 pixel = 4 game units
-MAX_MAP_PIXELS_SIZE = (160, 112)  # (width, height) in pixels
-DEBUG_UI_START_POS = (-100.0, 100.0)  # Debug view starting position
+# --- Constants and Configuration ---
+GAME_SERVER_URL = "http://127.0.0.1:15702/"
+POLLING_INTERVAL_SECONDS = 0.2 # How often to fetch game state
+
+# Game Constants
+ONE_PIXEL_DISTANCE = 4.0
+MAX_MAP_PIXELS_SIZE = (160, 112)
+DEBUG_UI_START_POS = (-100.0, 100.0)
 TOTAL_LAYERS = 3
 
 # Derived Constants
-MAP_WIDTH_UNITS = MAX_MAP_PIXELS_SIZE[0] * ONE_PIXEL_DISTANCE  # 640 units
-MAP_HEIGHT_UNITS = MAX_MAP_PIXELS_SIZE[1] * ONE_PIXEL_DISTANCE  # 448 units
+MAP_WIDTH_UNITS = MAX_MAP_PIXELS_SIZE[0] * ONE_PIXEL_DISTANCE
+MAP_HEIGHT_UNITS = MAX_MAP_PIXELS_SIZE[1] * ONE_PIXEL_DISTANCE
 
-# Type definitions
+# --- Enums and Type Definitions ---
 GameStateEncoding = Literal[
     'Empty', 'Floor', 'Wall', 'Glass',
     'Crate', 'Pickup', 'Bullet', 'Characters'
 ]
 
-
-# Enums matching Rust code
 class PlayerCharacter(str, Enum):
     ORANGE = "Orange"
     LIME = "Lime"
     VITELOT = "Vitelot"
     LEMON = "Lemon"
 
-
 class PlayerDevice(str, Enum):
     KEYBOARD = "Keyboard"
     GAMEPAD = "Gamepad"
 
+# Define symbols globally so both map and legend can access them
+SYMBOLS = {
+    'Empty': ' ',
+    'Floor': '\033[90m.\033[0m',  # Gray floor
+    'Wall': '\033[91m#\033[0m',  # Red walls
+    'Glass': '\033[94m░\033[0m',  # Blue glass
+    'Crate': '\033[93m■\033[0m',  # Yellow crates
+    'Pickup': '\033[92mP\033[0m',  # Green pickups
+    'Bullet': '\033[91m•\033[0m',  # Red bullets
+    'Characters': '\033[93m☻\033[0m'  # Yellow characters
+}
 
 class PlayerState(TypedDict):
-    """Detailed player state based on spawn.rs components"""
     position: Tuple[float, float]
     rotation: float
     character: PlayerCharacter
@@ -48,22 +62,22 @@ class PlayerState(TypedDict):
     is_grounded: bool
     health: float
     inventory: List[str]
-    velocity: Tuple[float, float]
+    velocity: Tuple[float, float]  # Velocity reported by the game (Rapier)
     animation_state: Optional[str]
-
+    calculated_velocity: Optional[Tuple[float, float]] # Velocity calculated from pos change
+    calculated_speed: Optional[float] # Speed calculated from pos change
 
 @dataclass
 class ParsedGameState:
-    """Structured representation of the game state"""
     floors: List[List[GameStateEncoding]]
     walls: List[List[GameStateEncoding]]
     entities: List[List[GameStateEncoding]]
     ai_states: Dict[int, bool]
-    players: Dict[int, PlayerState]
+    players: Dict[Any, PlayerState] # Key can be player entity ID (int/str)
 
+    # Property methods remain the same
     @property
     def player_positions(self) -> List[Tuple[int, int]]:
-        """Returns (x,y) positions of all characters"""
         positions = []
         for y, row in enumerate(self.entities):
             for x, cell in enumerate(row):
@@ -73,7 +87,6 @@ class ParsedGameState:
 
     @property
     def pickup_positions(self) -> List[Tuple[int, int]]:
-        """Returns (x,y) positions of all pickups"""
         positions = []
         for y, row in enumerate(self.entities):
             for x, cell in enumerate(row):
@@ -81,180 +94,128 @@ class ParsedGameState:
                     positions.append((x, y))
         return positions
 
-    @property
-    def bullet_positions(self) -> List[Tuple[int, int]]:
-        """Returns (x,y) positions of all bullets"""
-        positions = []
-        for y, row in enumerate(self.entities):
-            for x, cell in enumerate(row):
-                if cell == 'Bullet':
-                    positions.append((x, y))
-        return positions
+    # Add other property methods here if needed (bullet, crate, etc.)
+    # ... (bullet_positions, crate_positions, glass_positions, etc.) ...
 
-    @property
-    def crate_positions(self) -> List[Tuple[int, int]]:
-        """Returns (x,y) positions of all crates"""
-        positions = []
-        for y, row in enumerate(self.entities):
-            for x, cell in enumerate(row):
-                if cell == 'Crate':
-                    positions.append((x, y))
-        return positions
 
-    @property
-    def glass_positions(self) -> List[Tuple[int, int]]:
-        """Returns (x,y) positions of all glass (from walls layer)"""
-        positions = []
-        for y, row in enumerate(self.walls):
-            for x, cell in enumerate(row):
-                if cell == 'Glass':
-                    positions.append((x, y))
-        return positions
-
-    @property
-    def wall_positions(self) -> List[Tuple[int, int]]:
-        """Returns (x,y) positions of all walls (from walls layer)"""
-        positions = []
-        for y, row in enumerate(self.walls):
-            for x, cell in enumerate(row):
-                if cell == 'Wall':
-                    positions.append((x, y))
-        return positions
-
-    @property
-    def empty_positions(self) -> List[Tuple[int, int]]:
-        """Returns (x,y) positions of all empty floor tiles (from floor layer)"""
-        positions = []
-        for y, row in enumerate(self.floors):
-            for x, cell in enumerate(row):
-                if cell == 'Empty':
-                    positions.append((x, y))
-        return positions
-
-    @property
-    def floor_positions(self) -> List[Tuple[int, int]]:
-        """Returns (x,y) positions of all floor tiles (from floor layer)"""
-        positions = []
-        for y, row in enumerate(self.floors):
-            for x, cell in enumerate(row):
-                if cell == 'Floor':
-                    positions.append((x, y))
-        return positions
-
+# --- Core Logic Functions ---
 
 def fetch_game_state() -> Optional[ParsedGameState]:
-    """Fetches and parses game state with proper velocity handling"""
+    """Fetches and parses game state, reading velocity from Rapier."""
     try:
-        # First query for GameState
         game_state_payload = {
-            "id": 1,
-            "jsonrpc": "2.0",
-            "method": "bevy/query",
+            "id": 1, "jsonrpc": "2.0", "method": "bevy/query",
             "params": {
-                "data": {
-                    "components": ["hotline_miami_like::ai::game_state::GameState"],
-                    "has": [],
-                    "option": []
-                },
-                "filter": {
-                    "with": [],
-                    "without": []
-                }
+                "data": {"components": ["hotline_miami_like::ai::game_state::GameState"], "has": [], "option": []},
+                "filter": {"with": [], "without": []}
             }
         }
 
-        # Query for Players with movement components
         players_payload = {
-            "id": 2,
-            "jsonrpc": "2.0",
-            "method": "bevy/query",
+            "id": 2, "jsonrpc": "2.0", "method": "bevy/query",
             "params": {
                 "data": {
                     "components": [
                         "hotline_miami_like::player::spawn::Player",
                         "bevy_transform::components::transform::Transform",
                         "hotline_miami_like::player::damagable::Damagable",
-                        "hotline_miami_like::player::movement::Movement"
+                        "bevy_rapier2d::dynamics::Velocity" # Request Rapier's Velocity
                     ],
                     "has": [],
-                    "option": []
+                    "option": ["entity"] # Request entity ID
                 },
                 "filter": {
-                    "with": ["hotline_miami_like::player::spawn::Player"],
+                    "with": ["hotline_miami_like::player::spawn::Player", "bevy_rapier2d::dynamics::Velocity"],
                     "without": []
                 }
             }
         }
 
-        # Get GameState
-        game_state_response = requests.post("http://127.0.0.1:15702/", json=game_state_payload, timeout=1.0)
+        game_state_response = requests.post(GAME_SERVER_URL, json=game_state_payload, timeout=1.0)
         game_state_response.raise_for_status()
         game_state_data = game_state_response.json()
 
-        # Get Players
-        players_response = requests.post("http://127.0.0.1:15702/", json=players_payload, timeout=1.0)
+        players_response = requests.post(GAME_SERVER_URL, json=players_payload, timeout=1.0)
         players_response.raise_for_status()
         players_data = players_response.json()
 
-        # Parse GameState
+        # --- Parse GameState ---
         if not game_state_data.get("result"):
-            print("Warning: No GameState entity found")
             return None
-
         game_state_entity = game_state_data["result"][0]
-        if "hotline_miami_like::ai::game_state::GameState" not in game_state_entity["components"]:
+        if "hotline_miami_like::ai::game_state::GameState" not in game_state_entity.get("components", {}):
             print("Warning: GameState entity missing GameState component")
             return None
-
         raw_state = game_state_entity["components"]["hotline_miami_like::ai::game_state::GameState"]
 
-        # Parse Players with careful velocity handling
+        # --- Parse Players ---
         players = {}
         if players_data.get("result"):
-            for idx, entity in enumerate(players_data["result"]):
-                components = entity.get("components", {})
-                if "hotline_miami_like::player::spawn::Player" not in components:
-                    continue
+            for entity_data in players_data["result"]:
+                entity_id = entity_data.get("entity", {}).get("id", f"unknown_{time.time()}") # Use entity ID or fallback
+                components = entity_data.get("components", {})
+
+                if "hotline_miami_like::player::spawn::Player" not in components \
+                   or "bevy_rapier2d::dynamics::Velocity" not in components:
+                     continue # Skip if essential components missing
 
                 try:
                     player_comp = components["hotline_miami_like::player::spawn::Player"]
                     transform = components.get("bevy_transform::components::transform::Transform",
                                                {"translation": [0, 0, 0], "rotation": [0, 0, 0, 1]})
+                    rapier_velocity_comp = components.get("bevy_rapier2d::dynamics::Velocity", {})
+                    velocity_vec = rapier_velocity_comp.get("linvel", [0.0, 0.0])
 
-                    # Get movement component with proper fallbacks
-                    movement = components.get("hotline_miami_like::player::movement::Movement", {})
-                    velocity_x = movement.get("velocity_x", 0.0) if isinstance(movement, dict) else 0.0
-                    velocity_y = movement.get("velocity_y", 0.0) if isinstance(movement, dict) else 0.0
+                    velocity_x, velocity_y = 0.0, 0.0
+                    if isinstance(velocity_vec, (list, tuple)) and len(velocity_vec) >= 2:
+                        try:
+                            velocity_x = float(velocity_vec[0])
+                            velocity_y = float(velocity_vec[1])
+                        except (TypeError, ValueError): pass
 
-                    # Calculate rotation
                     rotation = transform.get("rotation", [0, 0, 0, 1])
+                    rotation_angle = 0.0
                     try:
-                        rotation_angle = 2 * math.atan2(rotation[2], rotation[3])
-                    except (IndexError, TypeError):
-                        rotation_angle = 0.0
+                         q2, q3 = float(rotation[2]), float(rotation[3])
+                         if abs(q3) > 1e-9 or abs(q2) > 1e-9: # Avoid atan2(0,0) -> NaN
+                            rotation_angle = 2 * math.atan2(q2, q3)
+                    except (IndexError, TypeError, ValueError): pass
 
-                    players[idx] = {
+                    players[entity_id] = {
                         "position": (float(transform.get("translation", [0, 0, 0])[0]),
                                      float(transform.get("translation", [0, 0, 0])[1])),
-                        "rotation": float(rotation_angle),
+                        "rotation": rotation_angle,
                         "character": PlayerCharacter(player_comp.get("color", "Orange")),
                         "device": PlayerDevice.KEYBOARD if str(player_comp.get("device", "")).lower() == "keyboard"
                         else PlayerDevice.GAMEPAD,
                         "is_shooting": bool(player_comp.get("is_shoot_button_pressed", False)),
                         "is_kicking": bool(player_comp.get("is_kicking", False)),
                         "is_moving": bool(player_comp.get("is_any_move_button_pressed", False)),
-                        "is_grounded": True,
+                        "is_grounded": True, # Placeholder
                         "health": float(
-                            components.get("hotline_miami_like::player::damagable::Damagable", {}).get("health",
-                                                                                                       100.0)),
-                        "inventory": [],
-                        "velocity": (float(velocity_x), float(velocity_y)),
-                        "animation_state": None
+                            components.get("hotline_miami_like::player::damagable::Damagable", {}).get("health", 100.0)
+                        ),
+                        "inventory": [], # Placeholder
+                        "velocity": (velocity_x, velocity_y),
+                        "animation_state": None, # Placeholder
+                        "calculated_velocity": None,
+                        "calculated_speed": None
                     }
 
                 except Exception as e:
-                    print(f"Error parsing player {idx}: {str(e)}")
+                    print(f"\n--- Error parsing player {entity_id} ---")
+                    print(f"Error: {str(e)}")
+                    print(f"Components data: {json.dumps(components, indent=2)}")
+                    print("-" * 20)
                     continue
+
+        # --- Validate state structure before creating object ---
+        if not isinstance(raw_state.get("state"), list) or len(raw_state["state"]) != TOTAL_LAYERS:
+             print(f"Error: Invalid 'state' structure received: {raw_state.get('state')}")
+             return None
+        if not all(isinstance(layer, list) for layer in raw_state["state"]):
+             print(f"Error: Layers within 'state' are not all lists.")
+             return None
 
         return ParsedGameState(
             floors=raw_state["state"][0],
@@ -262,162 +223,245 @@ def fetch_game_state() -> Optional[ParsedGameState]:
             entities=raw_state["state"][2],
             ai_states={
                 idx: bool(state)
-                for idx, state in enumerate(raw_state["ai_state"])
-                if idx < 10
+                for idx, state in enumerate(raw_state.get("ai_state", []))
             },
             players=players
         )
 
-    except requests.exceptions.RequestException as e:
-        print(f"Network error: {str(e)}")
+    except requests.exceptions.RequestException: # Less verbose network error
+        pass
     except json.JSONDecodeError as e:
         print(f"Invalid JSON response: {str(e)}")
     except Exception as e:
-        print(f"Unexpected error: {str(e)}")
+        print(f"Unexpected error in fetch_game_state: {str(e)}")
+        traceback.print_exc()
 
     return None
 
 
-def print_player_details(player: PlayerState, index: int):
-    """Prints detailed information about a player"""
-    velocity_magnitude = math.sqrt(player['velocity'][0] ** 2 + player['velocity'][1] ** 2)
-    print(f"\nPlayer {index} ({player['character'].value}):")
-    print(f"  Position: ({player['position'][0]:.1f}, {player['position'][1]:.1f})")
-    print(f"  Rotation: {math.degrees(player['rotation']):.1f}°")
-    print(f"  Device: {player['device'].value}")
-    print(f"  State: {'SHOOTING' if player['is_shooting'] else ''} "
-          f"{'KICKING' if player['is_kicking'] else ''} "
-          f"{'MOVING' if player['is_moving'] else ''}")
-    print(f"  Health: {player['health']:.1f}")
-    print(f"  Velocity: ({player['velocity'][0]:.1f}, {player['velocity'][1]:.1f})")
-    print(f"  Speed: {velocity_magnitude:.1f} units/sec")
-    if player['inventory']:
-        print(f"  Inventory: {', '.join(player['inventory'])}")
+def update_calculated_velocity(current_state: ParsedGameState,
+                               previous_state_data: Optional[ParsedGameState], # Renamed for clarity
+                               delta_time: float):
+    """Calculates velocity based on position change and updates the current_state."""
+    if previous_state_data is None or delta_time <= 1e-6:
+        for player_id, current_player in current_state.players.items():
+              current_player['calculated_velocity'] = None
+              current_player['calculated_speed'] = None
+        return
+
+    for player_id, current_player in current_state.players.items():
+        if player_id in previous_state_data.players:
+            previous_player = previous_state_data.players[player_id]
+            if isinstance(previous_player.get('position'), (list, tuple)) and len(previous_player['position']) >= 2 and \
+               isinstance(current_player.get('position'), (list, tuple)) and len(current_player['position']) >= 2:
+                prev_pos = previous_player['position']
+                curr_pos = current_player['position']
+                delta_x = curr_pos[0] - prev_pos[0]
+                delta_y = curr_pos[1] - prev_pos[1]
+
+                calc_vx = delta_x / delta_time
+                calc_vy = delta_y / delta_time
+                # Avoid math domain error for sqrt(negative) if delta is huge/erroneous
+                calc_speed_sq = calc_vx**2 + calc_vy**2
+                calc_speed = math.sqrt(calc_speed_sq) if calc_speed_sq >= 0 else 0.0
+
+
+                current_player['calculated_velocity'] = (calc_vx, calc_vy)
+                current_player['calculated_speed'] = calc_speed
+            else:
+                current_player['calculated_velocity'] = None
+                current_player['calculated_speed'] = None
+        else:
+            current_player['calculated_velocity'] = None
+            current_player['calculated_speed'] = None
+
+
+# --- Display Functions ---
+
+def print_player_details(player: PlayerState, player_id: Any):
+    """Prints detailed information about a player."""
+    reported_velocity = player.get('velocity', (0.0, 0.0))
+    reported_speed = math.sqrt(reported_velocity[0]**2 + reported_velocity[1]**2)
+
+    print(f"\nPlayer ID {player_id} ({player.get('character', PlayerCharacter.ORANGE).value}):") # Default character
+    pos = player.get('position', ('N/A', 'N/A'))
+    rot_deg = math.degrees(player.get('rotation', 0.0))
+    # Safely format position even if it's not a tuple
+    pos_str = f"({pos[0]:.1f}, {pos[1]:.1f})" if isinstance(pos, tuple) and len(pos) == 2 else f"{pos}"
+    print(f"  Position: {pos_str}")
+    print(f"  Rotation: {rot_deg:.1f}°")
+    print(f"  Device: {player.get('device', PlayerDevice.KEYBOARD).value}") # Default device
+    state_str = f"{'SHOOTING ' if player.get('is_shooting') else ''}" \
+                f"{'KICKING ' if player.get('is_kicking') else ''}" \
+                f"{'MOVING' if player.get('is_moving') else ''}" # Keep MOVING or empty
+    print(f"  State: {state_str.strip() if state_str.strip() else 'IDLE'}") # Show IDLE if no other state
+    print(f"  Health: {player.get('health', 0.0):.1f}")
+    print(f"  Reported Velocity (Rapier): ({reported_velocity[0]:.1f}, {reported_velocity[1]:.1f})")
+    print(f"  Reported Speed (Rapier): {reported_speed:.1f} units/sec")
+
+    if player.get('calculated_velocity') is not None and player.get('calculated_speed') is not None:
+        calc_vel = player['calculated_velocity']
+        calc_speed = player['calculated_speed']
+        print(f"  Calculated Velocity (Pos Δ): ({calc_vel[0]:.1f}, {calc_vel[1]:.1f}) (Avg)")
+        print(f"  Calculated Speed (Pos Δ): {calc_speed:.1f} units/sec (Avg)")
+    else:
+         print(f"  Calculated Velocity (Pos Δ): N/A")
+
+    inv = player.get('inventory', [])
+    if inv:
+        print(f"  Inventory: {', '.join(map(str, inv))}") # Ensure items are strings
 
 
 def show_ascii_map(game_state: ParsedGameState,
-                   view_center: Tuple[float, float] = None,
+                   view_center: Optional[Tuple[float, float]] = None,
                    view_width: float = 160.0,
                    view_height: float = 112.0,
                    cell_size: float = 4.0) -> str:
-    """
-    Generate ASCII representation of the game map
-    - view_center: (x,y) center position in game units
-    - view_width: View width in game units
-    - view_height: View height in game units
-    - cell_size: Size of each ASCII cell in game units
-    """
-    symbols = {
-        'Empty': ' ',
-        'Floor': '\033[90m.\033[0m',  # Gray floor
-        'Wall': '\033[91m#\033[0m',  # Red walls
-        'Glass': '\033[94m░\033[0m',  # Blue glass
-        'Crate': '\033[93m■\033[0m',  # Yellow crates
-        'Pickup': '\033[92mP\033[0m',  # Green pickups
-        'Bullet': '\033[91m•\033[0m',  # Red bullets
-        'Characters': '\033[93m☻\033[0m'  # Yellow characters
-    }
-
-    # Set default view center
+    """Generates ASCII representation of the game map."""
     if view_center is None:
-        view_center = (DEBUG_UI_START_POS[0] + view_width / 2,
-                       DEBUG_UI_START_POS[1] - view_height / 2)
+        view_center = (DEBUG_UI_START_POS[0] + MAP_WIDTH_UNITS / 2,
+                       DEBUG_UI_START_POS[1] - MAP_HEIGHT_UNITS / 2)
 
-    # Calculate array dimensions
     cells_x = math.ceil(view_width / cell_size)
     cells_y = math.ceil(view_height / cell_size)
 
-    # Convert world coordinates to array indices
+    if not game_state or not hasattr(game_state, 'entities') or not game_state.entities or \
+       not hasattr(game_state, 'walls') or not game_state.walls or \
+       not hasattr(game_state, 'floors') or not game_state.floors:
+        return "Error: Invalid game state layers.\n"
+    # Further check if layers have content and are lists of lists
+    if not isinstance(game_state.entities[0], list) or \
+       not isinstance(game_state.walls[0], list) or \
+       not isinstance(game_state.floors[0], list):
+         return "Error: Map layers are not lists of lists.\n"
+
+
+    map_pixel_height = len(game_state.entities)
+    map_pixel_width = len(game_state.entities[0])
+
+    if MAP_WIDTH_UNITS <= 0 or MAP_HEIGHT_UNITS <= 0 or map_pixel_width <= 0 or map_pixel_height <= 0:
+         return "Error: Invalid map dimensions.\n"
+
     def world_to_array(x: float, y: float) -> Tuple[int, int]:
-        arr_x = int((x - DEBUG_UI_START_POS[0]) * len(game_state.entities[0]) / MAP_WIDTH_UNITS)
-        arr_y = int((DEBUG_UI_START_POS[1] - y) * len(game_state.entities) / MAP_HEIGHT_UNITS)
+        arr_x = int((x - DEBUG_UI_START_POS[0]) * map_pixel_width / MAP_WIDTH_UNITS)
+        arr_y = int((DEBUG_UI_START_POS[1] - y) * map_pixel_height / MAP_HEIGHT_UNITS)
         return (
-            max(0, min(len(game_state.entities[0]) - 1, arr_x)),
-            max(0, min(len(game_state.entities) - 1, arr_y))
+            max(0, min(map_pixel_width - 1, arr_x)),
+            max(0, min(map_pixel_height - 1, arr_y))
         )
 
-    map_str = ""
-    for cell_y in range(cells_y):
-        world_y = view_center[1] + (cell_y * cell_size) - view_height / 2
-        for cell_x in range(cells_x):
-            world_x = view_center[0] + (cell_x * cell_size) - view_width / 2
+    map_str_builder = []
+    for row_idx in range(cells_y):
+        world_y = (view_center[1] + view_height / 2.0) - (row_idx + 0.5) * cell_size
+        row_str = ""
+        for col_idx in range(cells_x):
+            world_x = (view_center[0] - view_width / 2.0) + (col_idx + 0.5) * cell_size
             arr_x, arr_y = world_to_array(world_x, world_y)
 
-            # Check layers in proper order (entities > walls > floors)
-            entity = game_state.entities[arr_y][arr_x]
-            wall = game_state.walls[arr_y][arr_x]
-            floor = game_state.floors[arr_y][arr_x]
+            # Get cell content safely
+            try:
+                 entity = game_state.entities[arr_y][arr_x]
+                 wall = game_state.walls[arr_y][arr_x]
+                 floor = game_state.floors[arr_y][arr_x]
+            except IndexError:
+                 entity, wall, floor = '?', '?', '?' # Out of bounds somehow
 
+            char_to_add = '?'
             if entity != 'Empty':
-                map_str += symbols.get(entity, '?')
+                char_to_add = SYMBOLS.get(entity, '?')
             elif wall != 'Empty':
-                map_str += symbols.get(wall, '?')
+                char_to_add = SYMBOLS.get(wall, '?')
             else:
-                map_str += symbols.get(floor, '?')
-        map_str += "\n"
+                char_to_add = SYMBOLS.get(floor, '?')
+            row_str += char_to_add
+        map_str_builder.append(row_str)
 
-    return map_str
+    return "\n".join(map_str_builder) + "\n"
 
 
 def print_map_legend():
-    """Prints a legend explaining the map symbols"""
+    """Prints a legend explaining the map symbols."""
     print("\n=== Map Legend ===")
-    print("\033[90m. \033[0m- Floor")
-    print("\033[91m# \033[0m- Wall")
-    print("\033[94m░ \033[0m- Glass")
-    print("\033[93m■ \033[0m- Crate")
-    print("\033[92mP \033[0m- Pickup")
-    print("\033[91m• \033[0m- Bullet")
-    print("\033[93m☻ \033[0m- Character")
-    print("Coordinates are in game units (1 unit = 4 pixels)")
+    print(f"{SYMBOLS['Floor']} - Floor")
+    print(f"{SYMBOLS['Wall']} - Wall")
+    print(f"{SYMBOLS['Glass']} - Glass")
+    print(f"{SYMBOLS['Crate']} - Crate")
+    print(f"{SYMBOLS['Pickup']} - Pickup")
+    print(f"{SYMBOLS['Bullet']} - Bullet")
+    print(f"{SYMBOLS['Characters']} - Character")
+    print("Coordinates are in game units")
 
+
+# --- Main Execution Loop ---
 
 if __name__ == "__main__":
-    print_map_legend()
+    previous_game_state: Optional[ParsedGameState] = None # Correct variable name
+    previous_time: Optional[float] = None
+    first_run = True
 
     while True:
+        start_time = time.monotonic()
+
         try:
-            game_state = fetch_game_state()
+            current_game_state = fetch_game_state()
+            current_time = time.monotonic()
 
-            if game_state is None:
-                print("\nNo game state available - waiting for game to start...")
-                time.sleep(1)
+            if current_game_state is None:
+                if first_run: # Only show waiting message if we haven't received anything yet
+                     print("\nWaiting for game state from server...", end="\r")
+                # No need to reset previous_game_state here, keep the last known good one if available
+                time.sleep(0.5)
                 continue
+            elif first_run:
+                 print("Game state received. Starting updates...")
+                 first_run = False
 
-            print("\n=== Game State ===")
-            print(f"Active players: {len(game_state.players)}")
+            delta_time = (current_time - previous_time) if previous_time is not None else 0.0
 
-            # Print detailed player info
-            for idx, player in game_state.players.items():
-                print_player_details(player, idx)
+            # *** THE FIX IS HERE ***
+            update_calculated_velocity(current_game_state, previous_game_state, delta_time)
+            # *** ***
 
-            # Full map view
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print_map_legend()
+
+            print("\n=== Game State Update ===")
+            print(f"Active players: {len(current_game_state.players)}")
+            if delta_time > 0:
+                 print(f"Time since last update: {delta_time:.3f}s")
+
+            if not current_game_state.players:
+                print("\nNo active players detected.")
+            else:
+                # Sort players by ID for consistent order (optional)
+                sorted_player_ids = sorted(current_game_state.players.keys())
+                for player_id in sorted_player_ids:
+                    player_data = current_game_state.players[player_id]
+                    print_player_details(player_data, player_id)
+
             print("\n=== Full Map View ===")
             print(show_ascii_map(
-                game_state,
-                view_center=(DEBUG_UI_START_POS[0] + MAP_WIDTH_UNITS / 2,
-                             DEBUG_UI_START_POS[1] - MAP_HEIGHT_UNITS / 2),
+                current_game_state,
                 view_width=MAP_WIDTH_UNITS,
                 view_height=MAP_HEIGHT_UNITS,
-                cell_size=4.0
+                cell_size=ONE_PIXEL_DISTANCE * 2
             ))
 
-            # Player-centered views
-            if game_state.players:
-                for player_id, player in game_state.players.items():
-                    print(f"\n=== Player {player_id} View ===")
-                    print(show_ascii_map(
-                        game_state,
-                        view_center=player['position'],
-                        view_width=160.0,
-                        view_height=112.0,
-                        cell_size=4.0
-                    ))
+            # Update history for the next loop iteration
+            previous_game_state = current_game_state # Correct variable name used here
+            previous_time = current_time
 
         except KeyboardInterrupt:
-            print("\nStopping game state monitor")
+            print("\nStopping game state monitor.")
             break
         except Exception as e:
+            print(f"\n--- ERROR IN MAIN LOOP ---")
             print(f"Error: {str(e)}")
+            traceback.print_exc()
+            print(f"--------------------------")
+            # Don't reset state here, allow potential recovery on next fetch
+            time.sleep(1.0)
 
-        time.sleep(0.5)
+        processing_time = time.monotonic() - start_time
+        sleep_time = max(0, POLLING_INTERVAL_SECONDS - processing_time)
+        time.sleep(sleep_time)
