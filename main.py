@@ -16,12 +16,7 @@ POLLING_INTERVAL_SECONDS = 0.2  # How often to fetch game state
 # Game Constants
 ONE_PIXEL_DISTANCE = 4.0
 MAX_MAP_PIXELS_SIZE = (160, 112)
-# DEBUG_UI_START_POS = (-100.0, 100.0)
 TOTAL_LAYERS = 3
-
-# Derived Constants
-# MAP_WIDTH_UNITS = MAX_MAP_PIXELS_SIZE[0] * ONE_PIXEL_DISTANCE
-# MAP_HEIGHT_UNITS = MAX_MAP_PIXELS_SIZE[1] * ONE_PIXEL_DISTANCE
 
 # --- Enums and Type Definitions ---
 GameStateEncoding = Literal[
@@ -361,7 +356,6 @@ def show_ascii_map(game_state: ParsedGameState,
     if map_pixel_width <= 0 or map_pixel_height <= 0:
         return "Error: Invalid map dimensions.\n"
 
-    map_str_builder = [[""] * height] * width
     result = ""
     for col_idx in range(width):
         row_str = ""
@@ -383,7 +377,6 @@ def show_ascii_map(game_state: ParsedGameState,
             else:
                 char_to_add = SYMBOLS.get(floor, '?')
 
-            map_str_builder[col_idx][row_idx] = char_to_add
             row_str += char_to_add
         result += row_str + "\n"
 
