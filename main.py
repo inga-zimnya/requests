@@ -102,16 +102,21 @@ class ParsedGameState:
 # --- Core Logic Functions ---
 
 def fetch_game_state() -> Optional[ParsedGameState]:
-    """Fetches and parses game state, reading velocity from Rapier."""
+    """Fetches and parses game state, reading velocity from Movement component."""
     try:
+        # 1) Global GameState query
         game_state_payload = {
             "id": 1, "jsonrpc": "2.0", "method": "bevy/query",
             "params": {
-                "data": {"components": ["hotline_miami_like::ai::game_state::GameState"], "has": [], "option": []},
+                "data": {
+                    "components": ["hotline_miami_like::ai::game_state::GameState"],
+                    "has": [], "option": []
+                },
                 "filter": {"with": [], "without": []}
             }
         }
 
+        # 2) Players query: Movement instead of Rapier Velocity
         players_payload = {
             "id": 2, "jsonrpc": "2.0", "method": "bevy/query",
             "params": {
@@ -120,135 +125,98 @@ def fetch_game_state() -> Optional[ParsedGameState]:
                         "hotline_miami_like::player::spawn::Player",
                         "bevy_transform::components::transform::Transform",
                         "hotline_miami_like::player::damagable::Damagable",
-                        # Request Rapier's Velocity # TODO: player does not have velocity component. They have KinematicCharacterController. Need fix.
-                        "bevy_rapier2d::dynamics::Velocity"
+                        "hotline_miami_like::player::movement::Movement"
                     ],
                     "has": [],
-                    "option": ["entity"]  # Request entity ID
+                    "option": []
                 },
                 "filter": {
-                    "with": ["hotline_miami_like::player::spawn::Player", "bevy_rapier2d::dynamics::Velocity"],
+                    "with": ["hotline_miami_like::player::spawn::Player"],
                     "without": []
                 }
             }
         }
 
-        game_state_response = requests.post(
-            GAME_SERVER_URL, json=game_state_payload, timeout=1.0)
-        game_state_response.raise_for_status()
-        game_state_data = game_state_response.json()
+        # 3) Execute requests
+        gs_resp = requests.post(GAME_SERVER_URL, json=game_state_payload, timeout=1.0)
+        gs_resp.raise_for_status()
+        gs_data = gs_resp.json()
 
-        players_response = requests.post(
-            GAME_SERVER_URL, json=players_payload, timeout=1.0)
-        players_response.raise_for_status()
-        players_data = players_response.json()
+        pl_resp = requests.post(GAME_SERVER_URL, json=players_payload, timeout=1.0)
+        pl_resp.raise_for_status()
+        pl_data = pl_resp.json()
 
-        # --- Parse GameState ---
-        if not game_state_data.get("result"):
+        # 4) Parse GameState
+        if not gs_data.get("result"):
             return None
-        game_state_entity = game_state_data["result"][0]
-        if "hotline_miami_like::ai::game_state::GameState" not in game_state_entity.get("components", {}):
-            print("Warning: GameState entity missing GameState component")
-            return None
-        raw_state = game_state_entity["components"]["hotline_miami_like::ai::game_state::GameState"]
+        gs_ent = gs_data["result"][0]
+        raw_state = gs_ent["components"]["hotline_miami_like::ai::game_state::GameState"]
 
-        # --- Parse Players ---
-        players = {}
-        if players_data.get("result"):
-            for entity_data in players_data["result"]:
-                entity_id = entity_data.get("entity", {}).get(
-                    "id", f"unknown_{time.time()}")  # Use entity ID or fallback
-                components = entity_data.get("components", {})
+        # 5) Parse Players by index
+        players: Dict[int, PlayerState] = {}
+        for idx, ent in enumerate(pl_data.get("result", [])):
+            comps = ent.get("components", {})
+            if "hotline_miami_like::player::spawn::Player" not in comps:
+                continue
 
-                if "hotline_miami_like::player::spawn::Player" not in components \
-                   or "bevy_rapier2d::dynamics::Velocity" not in components:
-                    continue  # Skip if essential components missing
+            player_comp = comps["hotline_miami_like::player::spawn::Player"]
+            transform = comps.get(
+                "bevy_transform::components::transform::Transform",
+                {"translation": [0, 0, 0], "rotation": [0, 0, 0, 1]}
+            )
+            damagable = comps.get(
+                "hotline_miami_like::player::damagable::Damagable",
+                {"health": 100.0}
+            )
+            movement = comps.get(
+                "hotline_miami_like::player::movement::Movement",
+                {"velocity_x": 0.0, "velocity_y": 0.0}
+            )
 
-                try:
-                    player_comp = components["hotline_miami_like::player::spawn::Player"]
-                    transform = components.get("bevy_transform::components::transform::Transform",
-                                               {"translation": [0, 0, 0], "rotation": [0, 0, 0, 1]})
-                    rapier_velocity_comp = components.get(
-                        "bevy_rapier2d::dynamics::Velocity", {})
-                    velocity_vec = rapier_velocity_comp.get(
-                        "linvel", [0.0, 0.0])
+            # Calculate yaw from quaternion
+            rot = transform.get("rotation", [0, 0, 0, 1])
+            rotation_angle = 2 * math.atan2(rot[2], rot[3])
 
-                    velocity_x, velocity_y = 0.0, 0.0
-                    if isinstance(velocity_vec, (list, tuple)) and len(velocity_vec) >= 2:
-                        try:
-                            velocity_x = float(velocity_vec[0])
-                            velocity_y = float(velocity_vec[1])
-                        except (TypeError, ValueError):
-                            pass
+            players[idx] = {
+                "position": (
+                    float(transform["translation"][0]),
+                    float(transform["translation"][1])
+                ),
+                "rotation": rotation_angle,
+                "character": PlayerCharacter(player_comp.get("color", "Orange")),
+                "device": (
+                    PlayerDevice.KEYBOARD
+                    if player_comp.get("device", "Keyboard") == "Keyboard"
+                    else PlayerDevice.GAMEPAD
+                ),
+                "is_shooting": bool(player_comp.get("is_shoot_button_pressed", False)),
+                "is_kicking":  bool(player_comp.get("is_kicking", False)),
+                "is_moving":   bool(player_comp.get("is_any_move_button_pressed", False)),
+                "is_grounded": True,
+                "health":      float(damagable.get("health", 100.0)),
+                "inventory":   [],
+                "velocity": (
+                    float(movement.get("velocity_x", 0.0)),
+                    float(movement.get("velocity_y", 0.0))
+                ),
+                "animation_state":   None,
+                "calculated_velocity": None,
+                "calculated_speed":    None
+            }
 
-                    rotation = transform.get("rotation", [0, 0, 0, 1])
-                    rotation_angle = 0.0
-                    try:
-                        q2, q3 = float(rotation[2]), float(rotation[3])
-                        if abs(q3) > 1e-9 or abs(q2) > 1e-9:  # Avoid atan2(0,0) -> NaN
-                            rotation_angle = 2 * math.atan2(q2, q3)
-                    except (IndexError, TypeError, ValueError):
-                        pass
-
-                    players[entity_id] = {
-                        "position": (float(transform.get("translation", [0, 0, 0])[0]),
-                                     float(transform.get("translation", [0, 0, 0])[1])),
-                        "rotation": rotation_angle,
-                        "character": PlayerCharacter(player_comp.get("color", "Orange")),
-                        "device": PlayerDevice.KEYBOARD if str(player_comp.get("device", "")).lower() == "keyboard"
-                        else PlayerDevice.GAMEPAD,
-                        "is_shooting": bool(player_comp.get("is_shoot_button_pressed", False)),
-                        "is_kicking": bool(player_comp.get("is_kicking", False)),
-                        "is_moving": bool(player_comp.get("is_any_move_button_pressed", False)),
-                        "is_grounded": True,  # Placeholder
-                        "health": float(
-                            components.get("hotline_miami_like::player::damagable::Damagable", {}).get(
-                                "health", 100.0)
-                        ),
-                        "inventory": [],  # Placeholder
-                        "velocity": (velocity_x, velocity_y),
-                        "animation_state": None,  # Placeholder
-                        "calculated_velocity": None,
-                        "calculated_speed": None
-                    }
-
-                except Exception as e:
-                    print(f"\n--- Error parsing player {entity_id} ---")
-                    print(f"Error: {str(e)}")
-                    print(
-                        f"Components data: {json.dumps(components, indent=2)}")
-                    print("-" * 20)
-                    continue
-
-        # --- Validate state structure before creating object ---
-        if not isinstance(raw_state.get("state"), list) or len(raw_state["state"]) != TOTAL_LAYERS:
-            print(
-                f"Error: Invalid 'state' structure received: {raw_state.get('state')}")
-            return None
-        if not all(isinstance(layer, list) for layer in raw_state["state"]):
-            print(f"Error: Layers within 'state' are not all lists.")
-            return None
-
+        # 6) Return structured state
         return ParsedGameState(
             floors=raw_state["state"][0],
-            walls=raw_state["state"][1],
-            entities=raw_state["state"][2],
-            ai_states={
-                idx: bool(state)
-                for idx, state in enumerate(raw_state.get("ai_state", []))
-            },
+            walls= raw_state["state"][1],
+            entities= raw_state["state"][2],
+            ai_states={i: bool(s) for i, s in enumerate(raw_state.get("ai_state", []))},
             players=players
         )
 
-    except requests.exceptions.RequestException:  # Less verbose network error
-        pass
-    except json.JSONDecodeError as e:
-        print(f"Invalid JSON response: {str(e)}")
     except Exception as e:
-        print(f"Unexpected error in fetch_game_state: {str(e)}")
+        print(f"Error in fetch_game_state: {e}")
         traceback.print_exc()
-
-    return None
+        return None
 
 
 def update_calculated_velocity(current_state: ParsedGameState,
