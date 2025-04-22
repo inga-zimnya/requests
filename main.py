@@ -104,7 +104,7 @@ class ParsedGameState:
 def fetch_game_state() -> Optional[ParsedGameState]:
     """Fetches and parses game state, reading velocity from Movement component."""
     try:
-        # 1) Global GameState query
+        # 1) Global GameState query (unchanged)
         game_state_payload = {
             "id": 1, "jsonrpc": "2.0", "method": "bevy/query",
             "params": {
@@ -116,7 +116,7 @@ def fetch_game_state() -> Optional[ParsedGameState]:
             }
         }
 
-        # 2) Players query: Movement instead of Rapier Velocity
+        # 2) Players query (unchanged)
         players_payload = {
             "id": 2, "jsonrpc": "2.0", "method": "bevy/query",
             "params": {
@@ -137,7 +137,7 @@ def fetch_game_state() -> Optional[ParsedGameState]:
             }
         }
 
-        # 3) Execute requests
+        # 3) Execute requests (unchanged)
         gs_resp = requests.post(GAME_SERVER_URL, json=game_state_payload, timeout=1.0)
         gs_resp.raise_for_status()
         gs_data = gs_resp.json()
@@ -146,13 +146,13 @@ def fetch_game_state() -> Optional[ParsedGameState]:
         pl_resp.raise_for_status()
         pl_data = pl_resp.json()
 
-        # 4) Parse GameState
+        # 4) Parse GameState (unchanged)
         if not gs_data.get("result"):
             return None
         gs_ent = gs_data["result"][0]
         raw_state = gs_ent["components"]["hotline_miami_like::ai::game_state::GameState"]
 
-        # 5) Parse Players by index
+        # 5) Parse Players - only change is in character color handling
         players: Dict[int, PlayerState] = {}
         for idx, ent in enumerate(pl_data.get("result", [])):
             comps = ent.get("components", {})
@@ -173,9 +173,18 @@ def fetch_game_state() -> Optional[ParsedGameState]:
                 {"velocity_x": 0.0, "velocity_y": 0.0}
             )
 
-            # Calculate yaw from quaternion
+            # Calculate yaw from quaternion (unchanged)
             rot = transform.get("rotation", [0, 0, 0, 1])
             rotation_angle = 2 * math.atan2(rot[2], rot[3])
+
+            # Improved character color handling
+            color = player_comp.get("color", "Lemon")
+            print(f"DEBUG - Player {idx} color: {color}")
+            try:
+                character = PlayerCharacter(player_comp["character"])
+            except ValueError:
+                # Fallback to Orange if color is invalid
+                character = PlayerCharacter.LEMON
 
             players[idx] = {
                 "position": (
@@ -183,7 +192,7 @@ def fetch_game_state() -> Optional[ParsedGameState]:
                     float(transform["translation"][1])
                 ),
                 "rotation": rotation_angle,
-                "character": PlayerCharacter(player_comp.get("color", "Orange")),
+                "character": character,  # Using the properly handled character
                 "device": (
                     PlayerDevice.KEYBOARD
                     if player_comp.get("device", "Keyboard") == "Keyboard"
@@ -204,7 +213,7 @@ def fetch_game_state() -> Optional[ParsedGameState]:
                 "calculated_speed":    None
             }
 
-        # 6) Return structured state
+        # 6) Return structured state (unchanged)
         return ParsedGameState(
             floors=raw_state["state"][0],
             walls= raw_state["state"][1],
