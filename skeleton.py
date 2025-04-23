@@ -236,9 +236,20 @@ def main():
     # Initialize episode logging
     episode_log = {
         'total_rewards': [],
+        'episodes': [],
         'avg_losses': [],
+        'player_stats': {},  # Will store {pid: {reward_history: [], avg_loss: [], ...}}
         'steps_alive': []
     }
+
+    # Initialize player stats tracking
+    for pid in obs:
+        episode_log['player_stats'][pid] = {
+            'reward_history': [],
+            'loss_history': [],
+            'survival_rates': [],
+            'color': None
+        }
 
     for episode in range(1, 10):
         total_reward = {pid: 0.0 for pid in obs}
@@ -250,7 +261,7 @@ def main():
         print_players(state.players)
         time.sleep(1.0)
 
-        for t in range(1, 201):
+        for t in range(1, 3):
             acts = trainer.select_actions(obs)
             next_state, rewards = env.step(acts)
             next_obs = extract_obs(next_state)
@@ -263,15 +274,15 @@ def main():
                 if next_state.players.get(pid, {}).get('health', 0) > 0:
                     steps_alive[pid] += 1
 
-            os.system('cls' if os.name == 'nt' else 'clear')
+            #os.system('cls' if os.name == 'nt' else 'clear')
 
             # Enhanced Episode Header
             print(f"Episode {episode:03d} | Step {t:03d}")
             print("=" * 40)
 
             # Map Visualization
-            print_map_legend()
-            print(show_ascii_map(next_state))
+            # print_map_legend()
+            # print(show_ascii_map(next_state))
 
             # Enhanced Agent Stats
             print("\n--- AGENT PERFORMANCE METRICS ---")
@@ -338,14 +349,41 @@ def main():
         episode_log['avg_losses'].append({pid: np.mean(l) for pid, l in step_losses.items()})
         episode_log['steps_alive'].append(steps_alive)
 
-        print("\n>>> EPISODE SUMMARY <<<")
+        episode_log['episodes'].append(episode)
+        #os.system('cls' if os.name == 'nt' else 'clear')
+
+        print("\n=== EPISODE LOG ===")
         print("=" * 40)
         for pid in obs:
-            print(f"Player {pid}:")
-            print(f"  Total Reward: {total_reward[pid]:+.2f}")
-            print(f"  Avg Loss: {np.mean(step_losses[pid]):.4f}")
-            print(f"  Survival Rate: {(steps_alive[pid] / 200) * 100:.1f}%")
-            print("-" * 30)
+            # Store player color on first encounter
+            if episode_log['player_stats'][pid]['color'] is None:
+                episode_log['player_stats'][pid]['color'] = state.players[pid]['character'].value
+
+            # Update logs
+            avg_loss = np.mean(step_losses[pid])
+            survival_rate = (steps_alive[pid] / 200) * 100
+
+            episode_log['player_stats'][pid]['reward_history'].append(total_reward[pid])
+            episode_log['player_stats'][pid]['loss_history'].append(avg_loss)
+            episode_log['player_stats'][pid]['survival_rates'].append(survival_rate)
+
+            # Print current player log
+            print(f"Player {pid} ({episode_log['player_stats'][pid]['color']}):")
+            print(f"  Reward History: {episode_log['player_stats'][pid]['reward_history']}")
+            print(f"  Avg Loss History: {[f'{x:.4f}%' for x in episode_log['player_stats'][pid]['loss_history']]}")
+            print(f"  Survival Rates: {[f'{x:.1f}' for x in episode_log['player_stats'][pid]['survival_rates']]}")
+            print("-" * 40)
+
+            # Print formatted episode log table
+        print("\n=== EPISODE LOG SUMMARY ===")
+        print("Ep. | " + " | ".join(f"P{pid} Reward | P{pid} Loss | P{pid} Survival" for pid in obs))
+        for i, ep in enumerate(episode_log['episodes']):
+            row =[f"{ep:2d}"]
+            for pid in obs:
+                row.append(f"{episode_log['player_stats'][pid]['reward_history'][i]:+7.2f}")
+                row.append(f"{episode_log['player_stats'][pid]['loss_history'][i]:7.4f}")
+                row.append(f"{episode_log['player_stats'][pid]['survival_rates'][i]:6.1f}%")
+            print(" | ".join(row))
 
         # Periodic training report
         if episode % 10 == 0:
