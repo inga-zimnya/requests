@@ -8,15 +8,23 @@ from dataclasses import dataclass, field
 from enum import Enum
 import os  # For screen clearing
 import traceback  # For detailed error printing
+from actions import ActionClient
 
 # --- Constants and Configuration ---
 GAME_SERVER_URL = "http://127.0.0.1:15702/"
 POLLING_INTERVAL_SECONDS = 0.2  # How often to fetch game state
+PICKUP_POSITIONS: List[Tuple[int, int]] = []
 
 # Game Constants
 ONE_PIXEL_DISTANCE = 4.0
 MAX_MAP_PIXELS_SIZE = (160, 112)
 TOTAL_LAYERS = 3
+
+_current_pickups: List[Tuple[int, int]] = []
+
+def get_pickup_positions() -> List[Tuple[int, int]]:
+    """Global function to get current pickup positions"""
+    return _current_pickups.copy()
 
 # --- Enums and Type Definitions ---
 GameStateEncoding = Literal[
@@ -86,13 +94,16 @@ class ParsedGameState:
                     positions.append((x, y))
         return positions
 
-    @property
     def pickup_positions(self) -> List[Tuple[int, int]]:
+        global PICKUP_POSITIONS
+
         positions = []
         for y, row in enumerate(self.entities):
             for x, cell in enumerate(row):
                 if cell == 'Pickup':
                     positions.append((x, y))
+
+        PICKUP_POSITIONS = positions.copy()
         return positions
 
     # Add other property methods here if needed (bullet, crate, etc.)
@@ -377,6 +388,8 @@ def print_map_legend():
 
 if __name__ == "__main__":
     # Correct variable name
+    action_client = ActionClient(GAME_SERVER_URL)
+
     previous_game_state: Optional[ParsedGameState] = None
     previous_time: Optional[float] = None
     first_run = True
