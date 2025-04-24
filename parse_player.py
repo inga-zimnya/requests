@@ -59,6 +59,7 @@ SYMBOLS = {
 
 
 class PlayerState(TypedDict):
+    entity: int
     position: Tuple[float, float]
     rotation: float
     character: PlayerCharacter
@@ -113,9 +114,9 @@ class ParsedGameState:
 # --- Core Logic Functions ---
 
 def fetch_game_state() -> Optional[ParsedGameState]:
-    """Fetches and parses game state, reading velocity from Movement component."""
+    """Fetches and parses game state with comprehensive error checking."""
     try:
-        # 1) Global GameState query (unchanged)
+        # 1) Global GameState query
         game_state_payload = {
             "id": 1, "jsonrpc": "2.0", "method": "bevy/query",
             "params": {
@@ -127,7 +128,7 @@ def fetch_game_state() -> Optional[ParsedGameState]:
             }
         }
 
-        # 2) Players query (unchanged)
+        # 2) Players query
         players_payload = {
             "id": 2, "jsonrpc": "2.0", "method": "bevy/query",
             "params": {
@@ -148,99 +149,161 @@ def fetch_game_state() -> Optional[ParsedGameState]:
             }
         }
 
-        # 3) Execute requests (unchanged)
-        gs_resp = requests.post(
-            GAME_SERVER_URL, json=game_state_payload, timeout=1.0)
-        gs_resp.raise_for_status()
-        gs_data = gs_resp.json()
+        # 3) Execute requests with timeout
+        try:
+            gs_resp = requests.post(GAME_SERVER_URL, json=game_state_payload, timeout=1.0)
+            gs_resp.raise_for_status()
+            gs_data = gs_resp.json()
 
-        pl_resp = requests.post(
-            GAME_SERVER_URL, json=players_payload, timeout=1.0)
-        pl_resp.raise_for_status()
-        pl_data = pl_resp.json()
+            pl_resp = requests.post(GAME_SERVER_URL, json=players_payload, timeout=1.0)
+            pl_resp.raise_for_status()
+            pl_data = pl_resp.json()
 
-        # 4) Parse GameState (unchanged)
-        if not gs_data.get("result"):
+        except requests.RequestException as e:
+            print(f"Network error: {e}")
             return None
-        gs_ent = gs_data["result"][0]
-        raw_state = gs_ent["components"]["hotline_miami_like::ai::game_state::GameState"]
 
-        # 5) Parse Players - only change is in character color handling
+        # 4) Validate GameState response
+        if not isinstance(gs_data.get("result"), list) or len(gs_data["result"]) == 0:
+            print("Invalid GameState response format")
+            return None
+
+        try:
+            gs_ent = gs_data["result"][0]
+            raw_state = gs_ent.get("components", {}).get("hotline_miami_like::ai::game_state::GameState")
+            if not raw_state:
+                print("Missing GameState component")
+                return None
+        except (KeyError, IndexError) as e:
+            print(f"GameState parsing error: {e}")
+            return None
+
+        # 5) Parse Players with robust error checking
         players: Dict[int, PlayerState] = {}
-        for idx, ent in enumerate(pl_data.get("result", [])):
-            comps = ent.get("components", {})
+
+        # Check if player data exists and is in expected format
+        if not isinstance(pl_data.get("result"), list):
+            print("Invalid players response format")
+            return None
+
+        for idx, ent in enumerate(pl_data["result"]):
+            # Entity structure validation
+            if not isinstance(pl_data.get("result"), list) or len(pl_data["result"]) < 2:
+                print("DEBUG - pl_data['result'] does not contain at least two entries.")
+                return None
+
+            if "entity" not in pl_data["result"][idx]:
+                print("DEBUG - 'entity' field missing in pl_data['result'][{idx}]")
+                return None
+
+            entity_id = pl_data["result"][idx]["entity"]
+            print(f"DEBUG - pl_data['result'][{idx}]['entity']: {entity_id}")
+
+            if not isinstance(ent, dict):
+                print(f"Invalid entity format at index {idx}")
+                continue
+
+            if "components" not in ent:
+                print(f"Entity {idx} missing components")
+                continue
+
+            comps = ent["components"]
+
+            # Skip if not a player entity
             if "hotline_miami_like::player::spawn::Player" not in comps:
                 continue
 
-            player_comp = comps["hotline_miami_like::player::spawn::Player"]
-            transform = comps.get(
-                "bevy_transform::components::transform::Transform",
-                {"translation": [0, 0, 0], "rotation": [0, 0, 0, 1]}
-            )
-            damagable = comps.get(
-                "hotline_miami_like::player::damagable::Damagable",
-                {"health": 100.0}
-            )
-            movement = comps.get(
-                "hotline_miami_like::player::movement::Movement",
-                {"velocity_x": 0.0, "velocity_y": 0.0}
-            )
-
-            # Calculate yaw from quaternion (unchanged)
-            rot = transform.get("rotation", [0, 0, 0, 1])
-            rotation_angle = 2 * math.atan2(rot[2], rot[3])
-
-            # Improved character color handling
-            color = player_comp.get("color", "Lemon")
-            print(f"DEBUG - Player {idx} color: {color}")
             try:
-                character = PlayerCharacter(player_comp["character"])
-            except ValueError:
-                # Fallback to Orange if color is invalid
-                character = PlayerCharacter.LEMON
+                player_comp = comps["hotline_miami_like::player::spawn::Player"]
 
-            players[idx] = {
-                "position": (
-                    float(transform["translation"][0]),
-                    float(transform["translation"][1])
-                ),
-                "rotation": rotation_angle,
-                "character": character,  # Using the properly handled character
-                "device": (
-                    PlayerDevice.KEYBOARD
-                    if player_comp.get("device", "Keyboard") == "Keyboard"
-                    else PlayerDevice.GAMEPAD
-                ),
-                "is_shooting": bool(player_comp.get("is_shoot_button_pressed", False)),
-                "is_kicking":  bool(player_comp.get("is_kicking", False)),
-                "is_moving":   bool(player_comp.get("is_any_move_button_pressed", False)),
-                "is_grounded": True,
-                "health":      float(damagable.get("health", 100.0)),
-                "inventory":   [],
-                "velocity": (
-                    float(movement.get("velocity_x", 0.0)),
-                    float(movement.get("velocity_y", 0.0))
-                ),
-                "animation_state":   None,
-                "calculated_velocity": None,
-                "calculated_speed":    None
-            }
+                # Safe component access with defaults
+                transform = comps.get(
+                    "bevy_transform::components::transform::Transform",
+                    {"translation": [0, 0, 0], "rotation": [0, 0, 0, 1]}
+                )
+                damagable = comps.get(
+                    "hotline_miami_like::player::damagable::Damagable",
+                    {"health": 100.0}
+                )
+                movement = comps.get(
+                    "hotline_miami_like::player::movement::Movement",
+                    {"velocity_x": 0.0, "velocity_y": 0.0}
+                )
 
-        # 6) Return structured state (unchanged)
-        return ParsedGameState(
-            floors=raw_state["state"][0],
-            walls=raw_state["state"][1],
-            entities=raw_state["state"][2],
-            ai_states={i: bool(s) for i, s in enumerate(
-                raw_state.get("ai_state", []))},
-            players=players
-        )
+                # Safe rotation calculation
+                rot = transform.get("rotation", [0, 0, 0, 1])
+                try:
+                    rotation_angle = 2 * math.atan2(float(rot[2]), float(rot[3]))
+                except (IndexError, ValueError, TypeError):
+                    rotation_angle = 0.0
+                    print(f"Invalid rotation data for player {idx}")
+
+                # Robust character handling
+                try:
+                    character = PlayerCharacter(player_comp.get("character", "Lemon"))
+                except ValueError:
+                    character = PlayerCharacter.LEMON
+                    print(f"Invalid character for player {idx}, defaulting to LEMON")
+
+                # Safe position parsing
+                try:
+                    pos_x = float(transform["translation"][0])
+                    pos_y = float(transform["translation"][1])
+                except (KeyError, IndexError, ValueError):
+                    pos_x, pos_y = 0.0, 0.0
+                    print(f"Invalid position for player {idx}")
+
+                # Safe velocity parsing
+                try:
+                    vel_x = float(movement.get("velocity_x", 0.0))
+                    vel_y = float(movement.get("velocity_y", 0.0))
+                except ValueError:
+                    vel_x, vel_y = 0.0, 0.0
+                    print(f"Invalid velocity for player {idx}")
+
+                players[idx] = {
+                    "entity": entity_id,
+                    "position": (pos_x, pos_y),
+                    "rotation": rotation_angle,
+                    "character": character,
+                    "device": (
+                        PlayerDevice.KEYBOARD
+                        if player_comp.get("device", "Keyboard") == "Keyboard"
+                        else PlayerDevice.GAMEPAD
+                    ),
+                    "is_shooting": bool(player_comp.get("is_shoot_button_pressed", False)),
+                    "is_kicking": bool(player_comp.get("is_kicking", False)),
+                    "is_moving": bool(player_comp.get("is_any_move_button_pressed", False)),
+                    "is_grounded": True,
+                    "health": float(damagable.get("health", 100.0)),
+                    "inventory": [],
+                    "velocity": (vel_x, vel_y),
+                    "animation_state": None,
+                    "calculated_velocity": None,
+                    "calculated_speed": None
+                }
+
+            except Exception as e:
+                print(f"Error processing player {idx}: {e}")
+                continue
+
+        # 6) Return structured state with validation
+        try:
+            return ParsedGameState(
+                floors=raw_state["state"][0],
+                walls=raw_state["state"][1],
+                entities=raw_state["state"][2],
+                ai_states={i: bool(s) for i, s in enumerate(raw_state.get("ai_state", []))},
+                players=players
+            )
+        except (KeyError, IndexError) as e:
+            print(f"Error creating ParsedGameState: {e}")
+            return None
 
     except Exception as e:
-        print(f"Error in fetch_game_state: {e}")
+        print(f"Unexpected error in fetch_game_state: {e}")
         traceback.print_exc()
         return None
-
 
 def update_calculated_velocity(current_state: ParsedGameState,
                                # Renamed for clarity
@@ -291,7 +354,8 @@ def update_ai_component():
     #     "params": {
     #         "entity": entity,
     #         "components": [
-    #             "hotline_miami_like::player::movement::Movement":{}
+    #             "hotline_miami_like::player::damagable::Damagable",
+    #             "hotline_miami_like::player::movement::Movement"
     #         ],
     #     }
     # }
@@ -318,6 +382,8 @@ def print_player_details(player: PlayerState, player_id: Any):
     # Safely format position even if it's not a tuple
     pos_str = f"({pos[0]:.1f}, {pos[1]:.1f})" if isinstance(
         pos, tuple) and len(pos) == 2 else f"{pos}"
+
+    print(f"  Entity ID: {player.get('entity')}")
     print(f"  Position: {pos_str}")
     print(f"  Rotation: {rot_deg:.1f}°")
     # Default device
@@ -445,7 +511,7 @@ if __name__ == "__main__":
             # *** ***
 
             os.system('cls' if os.name == 'nt' else 'clear')
-            print_map_legend()
+            #print_map_legend()
 
             print("\n-----Testing-----\n")
             update_ai_component()
@@ -464,8 +530,8 @@ if __name__ == "__main__":
                     player_data = current_game_state.players[player_id]
                     print_player_details(player_data, player_id)
 
-            print("\n=== Full Map View ===")
-            print(show_ascii_map(current_game_state))
+            #print("\n=== Full Map View ===")
+            #print(show_ascii_map(current_game_state))
 
             # Update history for the next loop iteration
             previous_game_state = current_game_state  # Correct variable name used here
