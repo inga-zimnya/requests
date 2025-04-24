@@ -149,11 +149,13 @@ def fetch_game_state() -> Optional[ParsedGameState]:
         }
 
         # 3) Execute requests (unchanged)
-        gs_resp = requests.post(GAME_SERVER_URL, json=game_state_payload, timeout=1.0)
+        gs_resp = requests.post(
+            GAME_SERVER_URL, json=game_state_payload, timeout=1.0)
         gs_resp.raise_for_status()
         gs_data = gs_resp.json()
 
-        pl_resp = requests.post(GAME_SERVER_URL, json=players_payload, timeout=1.0)
+        pl_resp = requests.post(
+            GAME_SERVER_URL, json=players_payload, timeout=1.0)
         pl_resp.raise_for_status()
         pl_data = pl_resp.json()
 
@@ -227,9 +229,10 @@ def fetch_game_state() -> Optional[ParsedGameState]:
         # 6) Return structured state (unchanged)
         return ParsedGameState(
             floors=raw_state["state"][0],
-            walls= raw_state["state"][1],
-            entities= raw_state["state"][2],
-            ai_states={i: bool(s) for i, s in enumerate(raw_state.get("ai_state", []))},
+            walls=raw_state["state"][1],
+            entities=raw_state["state"][2],
+            ai_states={i: bool(s) for i, s in enumerate(
+                raw_state.get("ai_state", []))},
             players=players
         )
 
@@ -277,7 +280,30 @@ def update_calculated_velocity(current_state: ParsedGameState,
             current_player['calculated_speed'] = None
 
 
-# --- Display Functions ---
+def update_ai_component():
+    # print(f"Ai entity get response: {response_data}")
+
+    # ---------- TODO:  ---------------
+    # print("Player data: ", pl_data['result'][1]['entity'])
+
+    # insert_req = {
+    #     "id": 3, "jsonrpc": "2.0", "method": "bevy/insert",
+    #     "params": {
+    #         "entity": entity,
+    #         "components": [
+    #             "hotline_miami_like::player::damagable::Damagable",
+    #             "hotline_miami_like::player::movement::Movement"
+    #         ],
+    #     }
+    # }
+
+    # resp = requests.post(
+    #     GAME_SERVER_URL, json=get_ai_entity_req, timeout=1.0)
+    # resp.raise_for_status()
+    # response_data = resp.json()
+
+    None
+
 
 def print_player_details(player: PlayerState, player_id: Any):
     """Prints detailed information about a player."""
@@ -421,6 +447,9 @@ if __name__ == "__main__":
 
             os.system('cls' if os.name == 'nt' else 'clear')
             print_map_legend()
+
+            print("\n-----Testing-----\n")
+            update_ai_component()
 
             print("\n=== Game State Update ===")
             print(f"Active players: {len(current_game_state.players)}")
