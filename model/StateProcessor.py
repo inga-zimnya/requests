@@ -1,11 +1,8 @@
 import numpy as np
 from typing import Dict, List, Tuple
 from collections import deque
-import torch
-import torch.nn as nn
-import torch.optim as optim
 
-from parse_player import ParsedGameState
+from parse_player import ParsedGameState  # Adjust import if needed
 
 
 class StateProcessor:
@@ -13,6 +10,7 @@ class StateProcessor:
         self.map_size = map_size
         self.history_length = 4  # Number of past states to remember
         self.state_history = deque(maxlen=self.history_length)
+        self.base_speed = 200.0  # Default value used for speed normalization
 
     def process_state(self, game_state: ParsedGameState, player_id: int) -> np.ndarray:
         """Convert game state to feature vector for RL model"""
@@ -28,38 +26,34 @@ class StateProcessor:
         player_features = [
             player['position'][0] / self.map_size[0],  # Normalized x
             player['position'][1] / self.map_size[1],  # Normalized y
-            player['rotation'] / (2 * np.pi),  # Normalized rotation
-            player['health'] / 100.0,  # Normalized health
+            player['rotation'] / (2 * np.pi),          # Normalized rotation
+            player['health'] / 100.0,                  # Normalized health
             float(player['is_shooting']),
             float(player['is_kicking']),
             float(player['is_moving']),
             player['calculated_speed'] / self.base_speed if player['calculated_speed'] is not None else 0.0
         ]
 
-        # 2. Nearby objects (simplified for now)
-        nearby_features = self._get_nearby_features(game_state, player['position'])
+        # 2. Nearby objects
+        nearby_features = self._get_nearby_features(game_state, player_id, player['position'])
 
         # Combine all features
-        state_vector = np.concatenate([
-            np.array(player_features),
-            nearby_features
-        ])
+        state_vector = np.concatenate([np.array(player_features), nearby_features])
 
         # Add to history
         self.state_history.append(state_vector)
 
-        # Stack history
+        # Fill the history buffer if it's not yet full
         while len(self.state_history) < self.history_length:
             self.state_history.appendleft(np.zeros_like(state_vector))
 
         return np.concatenate(self.state_history)
 
-    def _get_nearby_features(self, game_state: ParsedGameState, player_pos: Tuple[float, float]) -> np.ndarray:
+    def _get_nearby_features(self, game_state: ParsedGameState, player_id: int, player_pos: Tuple[float, float]) -> np.ndarray:
         """Extract features about nearby objects (pickups, enemies, etc.)"""
-        # Simplified version - can be enhanced with more sophisticated spatial awareness
         features = []
 
-        # Get all pickups
+        # --- Closest pickup ---
         pickups = game_state.pickup_positions()
         if pickups:
             closest_pickup = min(pickups, key=lambda p: self._distance(player_pos, p))
@@ -69,9 +63,9 @@ class StateProcessor:
                 self._distance(player_pos, closest_pickup) / max(self.map_size)
             ])
         else:
-            features.extend([0.0, 0.0, 1.0])  # No pickups
+            features.extend([0.0, 0.0, 1.0])  # No pickup = max distance
 
-        # Get other players (enemies)
+        # --- Closest enemy player ---
         enemy_features = []
         for pid, pdata in game_state.players.items():
             if pid != player_id:
@@ -82,11 +76,10 @@ class StateProcessor:
                     pdata['health'] / 100.0
                 ])
 
-        # Pad with zeros if no enemies
         if not enemy_features:
-            enemy_features = [0.0] * 4
+            enemy_features = [0.0] * 4  # No enemy present
 
-        features.extend(enemy_features[:4])  # Only consider closest enemy for now
+        features.extend(enemy_features[:4])  # Only use first enemy
 
         return np.array(features)
 
