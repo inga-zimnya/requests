@@ -1,11 +1,11 @@
 import time
 import math
 import random
-from typing import List, Tuple, Dict, Optional
+from typing import Tuple, Optional
 
 import numpy as np
 
-from PlayerMovement import PlayerMovementController
+from model.PlayerMovement import PlayerMovementController
 from main import fetch_game_state, ParsedGameState
 from StateProcessor import StateProcessor  # Your class from earlier
 
