@@ -6,6 +6,7 @@ from typing import Tuple, Optional
 import numpy as np
 
 from model.PlayerMovement import PlayerMovementController
+from model.PlayerInputController import PlayerInputController
 from main import fetch_game_state, ParsedGameState
 from StateProcessor import StateProcessor  # Your class from earlier
 
@@ -73,15 +74,18 @@ def heuristic_policy(state_vector: np.ndarray) -> Tuple[float, float]:
 
 
 # === Main Agent Loop ===
+
 def run_agent_loop(agent_index: int = 1, server_url: str = "http://127.0.0.1:15702/"):
     print(f"🤖 Agent started: player {agent_index}")
     controller = PlayerMovementController(server_url=server_url, player_index=agent_index)
+    input_controller = PlayerInputController(server_url=server_url, player_index=agent_index)
     processor = StateProcessor()
-    buffer = []  # list of (state, action, reward, next_state, done)
+    buffer = []
 
     prev_game_state: Optional[ParsedGameState] = None
     prev_state_vec = None
     last_action = None
+    frame_count = 0
 
     try:
         while True:
@@ -92,18 +96,43 @@ def run_agent_loop(agent_index: int = 1, server_url: str = "http://127.0.0.1:157
                 continue
 
             current_state_vec = processor.process_state(game_state, agent_index)
+            player = game_state.players[agent_index]
+            player_pos = np.array(player["position"])
 
             if prev_game_state and prev_state_vec is not None and last_action is not None:
                 reward = compute_reward(prev_game_state, game_state, agent_index)
                 buffer.append((prev_state_vec, last_action, reward, current_state_vec, False))
 
-            # Action = direction vector
+            # === Movement ===
             action = heuristic_policy(current_state_vec)
             last_action = action
             prev_state_vec = current_state_vec
             prev_game_state = game_state
-
             controller.move_analog(*action)
+
+            # === Input Heuristics ===
+            # Footstep every 10 frames
+            if frame_count % 10 == 0:
+                input_controller.press_foot()
+
+            # Try pickup if very close
+            for pickup_pos in game_state.pickup_positions():
+                if np.linalg.norm(np.subtract(pickup_pos, player_pos)) < 50:
+                    input_controller.press_pickup()
+                    break
+
+            # Try shoot if enemy close
+            for pid, enemy in game_state.players.items():
+                if pid != agent_index:
+                    enemy_pos = np.array(enemy["position"])
+                    if np.linalg.norm(enemy_pos - player_pos) < 100:
+                        input_controller.press_shoot()
+                        break
+
+            # Clear inputs to avoid persistent "pressed" state
+            input_controller.clear_input()
+
+            frame_count += 1
             time.sleep(0.2)
 
     except KeyboardInterrupt:
@@ -112,7 +141,9 @@ def run_agent_loop(agent_index: int = 1, server_url: str = "http://127.0.0.1:157
         print(f"❌ Error: {e}")
     finally:
         controller.stop()
+        input_controller.clear_input()
         print("📦 Collected data samples:", len(buffer))
+
         # You can save buffer to disk or return for training
 
 
