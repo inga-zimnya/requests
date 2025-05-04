@@ -9,9 +9,7 @@ def repeat_foot_press(player_index: int = 1, server_url: str = "http://127.0.0.1
         while True:
             # Step 1: Simulate button press (true)
             print("👣 Pressing foot button (true)")
-            success = controller._send_input_state({
-                "is_foot_button_just_pressed": True
-            })
+            success = controller.press_foot()
             if not success:
                 print("❌ Failed to send 'press' input")
 
