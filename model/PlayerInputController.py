@@ -1,7 +1,13 @@
+from parse_player import fetch_game_state
 import requests
 from typing import Optional, Dict
+import sys
+import os
 
-from parse_player import fetch_game_state
+
+# Add the root directory to the Python path
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
 
 
 class PlayerInputController:
@@ -34,11 +40,21 @@ class PlayerInputController:
                         "hotline_miami_like::player::input::PlayerInput": input_state
                     }
                 }
+                # "id": 3,
+                # "jsonrpc": "2.0",
+                # "method": "bevy/get",
+                # "params": {
+                #     "entity": entity_id,
+                #     "components": [
+                #         "hotline_miami_like::player::input::PlayerInput"]
+
+                # }
             }
 
             resp = requests.post(self.server_url, json=request, timeout=1.0)
             resp.raise_for_status()
-            print(f"📤 Sent PlayerInput: {input_state}")
+            print(
+                f"📤 Sent PlayerInput: {input_state}. Response: {resp.json()}")
             return True
 
         except Exception as e:
@@ -46,31 +62,13 @@ class PlayerInputController:
             return False
 
     # === Convenience methods ===
-    def press_shoot(self) -> bool:
-        return self._send_input_state({
-            "is_shoot_button_pressed": True,
-            "is_foot_button_just_pressed": False,
-            "is_pickup_button_just_pressed": False
-        })
 
     def press_foot(self) -> bool:
         return self._send_input_state({
             "is_shoot_button_pressed": False,
+            "is_shoot_button_just_pressed": False,
             "is_foot_button_just_pressed": True,
-            "is_pickup_button_just_pressed": False
-        })
-
-    def press_pickup(self) -> bool:
-        return self._send_input_state({
-            "is_shoot_button_pressed": False,
-            "is_foot_button_just_pressed": False,
-            "is_pickup_button_just_pressed": True
-        })
-
-    def clear_input(self) -> bool:
-        """Send all false — useful for resetting state"""
-        return self._send_input_state({
-            "is_shoot_button_pressed": False,
-            "is_foot_button_just_pressed": False,
-            "is_pickup_button_just_pressed": False
+            "is_pickup_button_just_pressed": False,
+            "is_shoot_button_just_released": False,
+            "is_any_move_button_pressed": False,
         })

@@ -1,9 +1,19 @@
-import random
-import time
-from typing import Optional, List, Tuple, Dict, Any
 import requests
+from typing import Optional, List, Tuple, Dict, Any
+import time
+import random
+import sys
+import os
 
-from parse_player import fetch_game_state  # Make sure this import is correct
+
+# Add the root directory to the Python path
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(root_dir)
+
+
+from parse_player import fetch_game_state
+
+# Now import from parse_player
 
 
 class PlayerMovementController:
@@ -25,7 +35,8 @@ class PlayerMovementController:
                 return False
 
             if len(game_state.players) <= self.player_index:
-                print(f"⚠️ Player index {self.player_index} out of range (total players: {len(game_state.players)})")
+                print(
+                    f"⚠️ Player index {self.player_index} out of range (total players: {len(game_state.players)})")
                 return False
 
             player = game_state.players[self.player_index]
@@ -112,7 +123,8 @@ class PlayerMovementController:
             elif isinstance(player, dict) and "x" in player and "y" in player:
                 return {"x": float(player["x"]), "y": float(player["y"])}
 
-            print(f"⚠️ Could not determine position format. Player data: {player}")
+            print(
+                f"⚠️ Could not determine position format. Player data: {player}")
             return None
 
         except Exception as e:
@@ -146,7 +158,8 @@ def main():
         for _ in range(3):
             pos = controller._get_player_position()
             if pos:
-                print(f"📍 Current position: X={pos['x']:.1f}, Y={pos['y']:.1f}")
+                print(
+                    f"📍 Current position: X={pos['x']:.1f}, Y={pos['y']:.1f}")
             controller.move_right(100.0)
             time.sleep(0.5)
             controller.stop()

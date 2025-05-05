@@ -3,7 +3,8 @@ from model.PlayerInputController import PlayerInputController
 
 
 def repeat_foot_press(player_index: int = 1, server_url: str = "http://127.0.0.1:15702/"):
-    controller = PlayerInputController(server_url=server_url, player_index=player_index)
+    controller = PlayerInputController(
+        server_url=server_url, player_index=player_index)
 
     try:
         while True:
@@ -16,9 +17,7 @@ def repeat_foot_press(player_index: int = 1, server_url: str = "http://127.0.0.1
             # Step 2: Small delay to let engine detect the press
             time.sleep(0.05)
 
-            # Step 3: Reset input (false)
-            print("🔄 Clearing foot button (false)")
-            controller.clear_input()
+            # Step 3: TODO: Reset input (false)
 
             # Step 4: Wait before repeating
             time.sleep(0.5)

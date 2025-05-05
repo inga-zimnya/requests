@@ -22,9 +22,11 @@ TOTAL_LAYERS = 3
 
 _current_pickups: List[Tuple[int, int]] = []
 
+
 def get_pickup_positions() -> List[Tuple[int, int]]:
     """Global function to get current pickup positions"""
     return _current_pickups.copy()
+
 
 # --- Enums and Type Definitions ---
 GameStateEncoding = Literal[
@@ -280,30 +282,6 @@ def update_calculated_velocity(current_state: ParsedGameState,
             current_player['calculated_speed'] = None
 
 
-def update_ai_component():
-    # print(f"Ai entity get response: {response_data}")
-
-    # ---------- TODO:  ---------------
-    # print("Player data: ", pl_data['result'][1]['entity'])
-
-    # insert_req = {
-    #     "id": 3, "jsonrpc": "2.0", "method": "bevy/insert",
-    #     "params": {
-    #         "entity": entity,
-    #         "components": [
-    #             "hotline_miami_like::player::movement::Movement":{}
-    #         ],
-    #     }
-    # }
-
-    # resp = requests.post(
-    #     GAME_SERVER_URL, json=get_ai_entity_req, timeout=1.0)
-    # resp.raise_for_status()
-    # response_data = resp.json()
-
-    None
-
-
 def print_player_details(player: PlayerState, player_id: Any):
     """Prints detailed information about a player."""
     reported_velocity = player.get('velocity', (0.0, 0.0))
@@ -446,9 +424,6 @@ if __name__ == "__main__":
 
             os.system('cls' if os.name == 'nt' else 'clear')
             print_map_legend()
-
-            print("\n-----Testing-----\n")
-            update_ai_component()
 
             print("\n=== Game State Update ===")
             print(f"Active players: {len(current_game_state.players)}")
