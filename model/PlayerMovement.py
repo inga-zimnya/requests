@@ -4,6 +4,7 @@ import time
 import random
 import sys
 import os
+from PlayerInputController import PlayerInputController  # Adjust import path as needed
 
 
 # Add the root directory to the Python path
@@ -134,35 +135,51 @@ class PlayerMovementController:
 
 def main():
     print("🚀 Starting Player Movement Demo")
-    controller = PlayerMovementController()
+    movement_controller = PlayerMovementController()
+    input_controller = PlayerInputController()  # Create input controller
 
     try:
-        # 1. Basic movement demo
-        print("\n=== BASIC MOVEMENT ===")
-        for direction in [controller.move_right, controller.move_down,
-                          controller.move_left, controller.move_up]:
+        # 1. Basic movement demo with kicks
+        print("\n=== BASIC MOVEMENT WITH KICKS ===")
+        for direction in [movement_controller.move_right, movement_controller.move_down,
+                          movement_controller.move_left, movement_controller.move_up]:
+            # Start moving
             direction()
-            time.sleep(1)
-            controller.stop()
-            time.sleep(0.5)
 
-        # 2. Analog movement demo
-        print("\n=== ANALOG MOVEMENT ===")
+            # Perform 3 quick kicks while moving
+            for _ in range(3):
+                input_controller.press_foot()
+                time.sleep(0.3)  # Short delay between kicks
+
+            movement_controller.stop()
+            time.sleep(0.5)  # Pause between directions
+
+        # 2. Analog movement demo with occasional kicks
+        print("\n=== ANALOG MOVEMENT WITH KICKS ===")
         for x, y in [(0.5, 0), (0, 0.7), (-0.3, -0.3), (0.9, 0.1)]:
-            controller.move_analog(x, y)
-            time.sleep(1)
-        controller.stop()
+            movement_controller.move_analog(x, y)
 
-        # 3. Position tracking demo
-        print("\n=== POSITION TRACKING ===")
+            # Kick once during each analog movement
+            time.sleep(0.5)  # Move first
+            input_controller.press_foot()  # Then kick
+            time.sleep(0.5)  # Continue moving after kick
+
+        movement_controller.stop()
+
+        # 3. Position tracking demo with kicking combo
+        print("\n=== POSITION TRACKING WITH KICKING COMBO ===")
         for _ in range(3):
-            pos = controller._get_player_position()
+            pos = movement_controller._get_player_position()
             if pos:
-                print(
-                    f"📍 Current position: X={pos['x']:.1f}, Y={pos['y']:.1f}")
-            controller.move_right(100.0)
-            time.sleep(0.5)
-            controller.stop()
+                print(f"📍 Current position: X={pos['x']:.1f}, Y={pos['y']:.1f}")
+
+            # Move right while kicking rapidly
+            movement_controller.move_right(100.0)
+            for _ in range(4):  # 4 quick kicks
+                input_controller.press_foot()
+                time.sleep(0.2)
+
+            movement_controller.stop()
             time.sleep(0.5)
 
         print("\n✅ Demo complete!")
@@ -170,7 +187,7 @@ def main():
     except KeyboardInterrupt:
         print("\n🛑 User stopped the demo")
     finally:
-        controller.stop()
+        movement_controller.stop()
 
 
 if __name__ == "__main__":
