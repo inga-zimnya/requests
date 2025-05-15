@@ -144,7 +144,7 @@ class StateProcessor:
 
 # === Reward Calculation ===
 def compute_reward(prev_state: ParsedGameState, curr_state: ParsedGameState, agent_id: int) -> float:
-    """Enhanced reward calculation"""
+    """Strategic reward calculation focusing on key game behaviors"""
     if agent_id not in prev_state.players or agent_id not in curr_state.players:
         return 0.0
 
@@ -152,26 +152,48 @@ def compute_reward(prev_state: ParsedGameState, curr_state: ParsedGameState, age
     curr_player = curr_state.players[agent_id]
     reward = 0.0
 
-    # Health change
-    health_diff = curr_player["health"] - prev_player["health"]
-    reward += health_diff * 5.0  # Scale health changes
+    # 1. Movement and Exploration (Encourage active movement)
+    position_change = math.dist(prev_player["position"], curr_player["position"])
+    reward += position_change * 0.05  # Reward for moving around
 
-    # Movement toward objectives
-    pickup_pos = curr_state.pickup_positions()
-    if pickup_pos:
-        prev_dist = min(math.dist(p, prev_player["position"]) for p in pickup_pos)
-        curr_dist = min(math.dist(p, curr_player["position"]) for p in pickup_pos)
-        reward += (prev_dist - curr_dist) * 0.1  # Reward getting closer
+    # 2. Weapon Pickups (Primary objective early game)
+    prev_has_gun = "gun" in prev_player.get("inventory", [])
+    curr_has_gun = "gun" in curr_player.get("inventory", [])
 
-    # Combat effectiveness
-    for pid, prev_enemy in prev_state.players.items():
-        if pid != agent_id and pid in curr_state.players:
-            health_diff = prev_enemy["health"] - curr_state.players[pid]["health"]
-            reward += health_diff * 2.0  # Reward damaging enemies
+    if not prev_has_gun and curr_has_gun:
+        reward += 10.0  # Big reward for getting first gun
+    elif curr_has_gun:
+        reward += 0.2  # Small bonus for keeping gun
 
-    # Survival bonus
-    if curr_player["health"] > 0:
-        reward += 0.1  # Small reward for staying alive
+    # 3. Combat Effectiveness (Only when armed)
+    if curr_has_gun:
+        # Check for kills (enemies that disappeared)
+        prev_enemies = {pid: p for pid, p in prev_state.players.items() if pid != agent_id}
+        curr_enemies = {pid: p for pid, p in curr_state.players.items() if pid != agent_id}
+
+        # Reward for kills
+        for pid in prev_enemies:
+            if pid not in curr_enemies:
+                reward += 15.0  # Big reward for eliminating enemy
+
+        # Reward for damaging enemies
+        for pid, curr_enemy in curr_enemies.items():
+            if pid in prev_enemies:
+                damage_dealt = prev_enemies[pid].get("health", 100) - curr_enemy.get("health", 100)
+                reward += damage_dealt * 0.5
+
+    # 4. Penalize shooting without gun
+    if not curr_has_gun and curr_player.get("is_shooting", False):
+        reward -= 5.0  # Penalty for trying to shoot without gun
+
+    # 5. Environmental Interaction (Breaking glass/objects)
+    prev_glass = sum(row.count('Glass') for row in prev_state.walls)
+    curr_glass = sum(row.count('Glass') for row in curr_state.walls)
+    if curr_glass < prev_glass:
+        reward += (prev_glass - curr_glass) * 0.3  # Reward for breaking glass
+
+    # 6. Survival Incentive (Small constant reward)
+    reward += 0.05  # Tiny reward for staying alive each frame
 
     return reward
 
