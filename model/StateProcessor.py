@@ -2,7 +2,7 @@ import numpy as np
 from typing import Dict, List, Tuple
 from collections import deque
 
-from parse_player import ParsedGameState  # Adjust import if needed
+from main import ParsedGameState  # Adjust import if needed
 
 
 class StateProcessor:

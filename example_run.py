@@ -1,7 +1,7 @@
 import requests
 import json
 import time
-from parse_player import fetch_game_state
+from main import fetch_game_state
 
 GAME_SERVER_URL = "http://127.0.0.1:15702/"
 POLL_INTERVAL = 1  # Time in seconds between requests

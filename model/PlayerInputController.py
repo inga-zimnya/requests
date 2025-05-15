@@ -1,4 +1,4 @@
-from parse_player import fetch_game_state
+from main import fetch_game_state
 import requests
 from typing import Optional, Dict
 import sys
@@ -68,6 +68,27 @@ class PlayerInputController:
             "is_shoot_button_pressed": False,
             "is_shoot_button_just_pressed": False,
             "is_foot_button_just_pressed": True,
+            "is_pickup_button_just_pressed": False,
+            "is_shoot_button_just_released": False,
+            "is_any_move_button_pressed": False,
+        })
+
+    def clear_input(self) -> bool:
+        """Send a neutral input state to clear all buttons"""
+        return self._send_input_state({
+            "is_shoot_button_pressed": False,
+            "is_shoot_button_just_pressed": False,
+            "is_foot_button_just_pressed": False,
+            "is_pickup_button_just_pressed": False,
+            "is_shoot_button_just_released": False,
+            "is_any_move_button_pressed": False,
+        })
+
+    def press_shoot(self) -> bool:
+        return self._send_input_state({
+            "is_shoot_button_pressed": True,
+            "is_shoot_button_just_pressed": True,
+            "is_foot_button_just_pressed": False,
             "is_pickup_button_just_pressed": False,
             "is_shoot_button_just_released": False,
             "is_any_move_button_pressed": False,

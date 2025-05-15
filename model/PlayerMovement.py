@@ -12,7 +12,7 @@ root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 
 
-from parse_player import fetch_game_state
+from main import fetch_game_state
 
 # Now import from parse_player
 

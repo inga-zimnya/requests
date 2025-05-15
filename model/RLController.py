@@ -3,7 +3,7 @@ import time
 from typing import Optional
 
 from actions import ActionClient
-from parse_player import ParsedGameState, fetch_game_state
+from main import ParsedGameState, fetch_game_state
 
 
 class RLController:
