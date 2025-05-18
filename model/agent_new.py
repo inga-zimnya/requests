@@ -130,6 +130,7 @@ class StateProcessor:
         else:
             features.extend([-1, -1])  # No pickups
 
+
         # Enemy features (closest)
         enemies = [p for pid, p in game_state.players.items() if pid != agent_id]
         if enemies:
@@ -138,6 +139,12 @@ class StateProcessor:
             features.append(closest_enemy["health"])
         else:
             features.extend([-1, -1, -1])  # No enemies
+
+        # === Ensure fixed state size ===
+        if len(features) < 15:
+            features.extend([0.0] * (15 - len(features)))  # Pad
+        elif len(features) > 15:
+            features = features[:15]  # Truncate
 
         return np.array(features, dtype=np.float32)
 
