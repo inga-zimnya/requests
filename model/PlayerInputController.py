@@ -93,3 +93,13 @@ class PlayerInputController:
             "is_shoot_button_just_released": False,
             "is_any_move_button_pressed": False,
         })
+
+    def press_pickup(self) -> bool:
+        return self._send_input_state({
+            "is_shoot_button_pressed": False,
+            "is_shoot_button_just_pressed": False,
+            "is_foot_button_just_pressed": False,
+            "is_pickup_button_just_pressed": True,
+            "is_shoot_button_just_released": False,
+            "is_any_move_button_pressed": False,
+        })
