@@ -31,7 +31,7 @@ class DQN(nn.Module):
 
 
 class MultiAgentRL:
-    def __init__(self, num_agents=2, state_size=15, action_size=5):
+    def __init__(self, num_agents=2, state_size=13, action_size=5):
         self.num_agents = num_agents
         self.state_size = state_size
         self.action_size = action_size
@@ -105,14 +105,13 @@ class StateProcessor:
 
     def process_state(self, game_state: ParsedGameState, agent_id: int) -> np.ndarray:
         if agent_id not in game_state.players:
-            return np.zeros(15)
+            return np.zeros(13)
 
         player = game_state.players[agent_id]
         features = []
 
         features.extend(player["position"])
         features.append(player["rotation"])
-        features.append(player["health"])
         features.append(1 if player["is_shooting"] else 0)
         features.append(1 if player["is_kicking"] else 0)
 
@@ -127,14 +126,13 @@ class StateProcessor:
         if enemies:
             closest_enemy = min(enemies, key=lambda e: math.dist(e["position"], player["position"]))
             features.extend(closest_enemy["position"])
-            features.append(closest_enemy["health"])
         else:
-            features.extend([-1, -1, -1])
+            features.extend([-1, -1])
 
-        if len(features) < 15:
-            features.extend([0.0] * (15 - len(features)))
-        elif len(features) > 15:
-            features = features[:15]
+        if len(features) < 13:
+            features.extend([0.0] * (13 - len(features)))
+        elif len(features) > 13:
+            features = features[:13]
 
         return np.array(features, dtype=np.float32)
 
@@ -166,11 +164,6 @@ def compute_reward(prev_state: ParsedGameState, curr_state: ParsedGameState, age
         for pid in prev_enemies:
             if pid not in curr_enemies:
                 reward += 15.0
-
-        for pid, curr_enemy in curr_enemies.items():
-            if pid in prev_enemies:
-                damage_dealt = prev_enemies[pid].get("health", 100) - curr_enemy.get("health", 100)
-                reward += damage_dealt * 0.5
 
     if not curr_has_gun and curr_player.get("is_shooting", False):
         reward -= 5.0
@@ -251,9 +244,6 @@ def run_training_loop(num_agents=2, server_url="http://127.0.0.1:15702/"):
                         next_states[i] = state_processor.process_state(next_game_state, i)
                         rewards[i] = compute_reward(game_state, next_game_state, i)
                         total_rewards[i] += rewards[i]
-
-                        if next_game_state.players[i]["health"] <= 0:
-                            done = True
 
                 if prev_states[0] is not None:
                     rl_agent.remember(states, actions, rewards, next_states, [done] * num_agents)
