@@ -222,5 +222,6 @@ def run_training_loop(server_url: str = "http://127.0.0.1:15702/"):
         for c in mov_ctrls: c.stop()
         for c in inp_ctrls: c.clear_input()
 
+
 if __name__ == "__main__":
     run_training_loop()

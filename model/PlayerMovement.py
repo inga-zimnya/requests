@@ -51,7 +51,7 @@ class PlayerMovementController:
                     "entity": entity_id,
                     "components": {
                         "hotline_miami_like::player::movement::Movement": {
-                            "norm_direction": direction,
+                            "direction": direction,
                             "speed": speed
                         }
                     }
