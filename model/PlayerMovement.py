@@ -1,3 +1,5 @@
+import math
+
 import requests
 from typing import Optional, List, Tuple, Dict, Any
 import time
@@ -131,6 +133,50 @@ class PlayerMovementController:
         except Exception as e:
             print(f"❌ Position fetch failed: {e}")
             return None
+
+def set_rotation(self, angle_rad: float) -> bool:
+    """Set the player's rotation (in radians)"""
+    try:
+        game_state = fetch_game_state()
+        if not game_state:
+            print("⚠️ No game state available")
+            return False
+
+        if len(game_state.players) <= self.player_index:
+            print(f"⚠️ Player index {self.player_index} out of range")
+            return False
+
+        player = game_state.players[self.player_index]
+        entity_id = player["entity"]
+
+        request = {
+            "id": 4,
+            "jsonrpc": "2.0",
+            "method": "bevy/insert",
+            "params": {
+                "entity": entity_id,
+                "components": {
+                    "Transform": {
+                        "rotation": {
+                            "type": "Quat",
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": math.sin(angle_rad / 2),
+                            "w": math.cos(angle_rad / 2)
+                        }
+                    }
+                }
+            }
+        }
+
+        resp = requests.post(self.server_url, json=request, timeout=1.0)
+        resp.raise_for_status()
+        print(f"🔁 Set rotation to {angle_rad:.2f} radians")
+        return True
+
+    except Exception as e:
+        print(f"❌ Rotation command failed: {e}")
+        return False
 
 
 def main():
