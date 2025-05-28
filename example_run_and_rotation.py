@@ -1,101 +1,130 @@
 import requests
-import json
-import time
 import math
-from main import fetch_game_state
+import time
+from typing import Optional, Tuple
+from main import fetch_game_state  # Assumes this returns ParsedGameState-like structure
 
 GAME_SERVER_URL = "http://127.0.0.1:15702/"
-POLL_INTERVAL = 1  # Time in seconds between requests
-MAX_RETRIES = 5  # Maximum number of retries for failed requests
-RETRY_DELAY = 0.5  # Time to wait between retries in seconds
+POLL_INTERVAL = 1.0
+
+
+def angle_to_quaternion(angle_rad: float) -> list:
+    """Return quaternion as [x, y, z, w]"""
+    x, y = 0.0, 0.0
+    z = math.sin(angle_rad / 2)
+    w = math.cos(angle_rad / 2)
+    return [x, y, z, w]
+
+
+
+def get_nearest_enemy_angle(player: dict, all_players: dict, player_id: int) -> Optional[float]:
+    px, py = player['position']
+    min_dist = float('inf')
+    nearest_angle = None
+
+    for pid, p in all_players.items():
+        if pid == player_id:
+            continue
+        ex, ey = p['position']
+        dist = math.hypot(ex - px, ey - py)
+        if dist < min_dist:
+            min_dist = dist
+            nearest_angle = math.atan2(ey - py, ex - px)
+
+    return nearest_angle
+
+
+def is_facing_enemy(player: dict, enemy_pos: Tuple[float, float]) -> bool:
+    """Check if player is facing an enemy"""
+    px, py = player['position']
+    ex, ey = enemy_pos
+    angle_to_enemy = math.atan2(ey - py, ex - px)
+    return abs(angle_to_enemy - player['rotation']) < math.pi / 6  # narrower 30° cone
+
+
+def reward_for_facing(curr_state, agent_id) -> float:
+    """Reward if the agent is facing an enemy"""
+    if agent_id not in curr_state.players:
+        return 0.0
+
+    agent = curr_state.players[agent_id]
+    px, py = agent['position']
+    angle = agent['rotation']
+
+    for pid, p in curr_state.players.items():
+        if pid == agent_id:
+            continue
+        ex, ey = p['position']
+        angle_to_enemy = math.atan2(ey - py, ex - px)
+        if abs(angle_to_enemy - angle) < math.pi / 6:
+            return 0.5  # Example reward value
+
+    return 0.0
 
 
 def update_ai_component():
-    """Update movement and rotation of the player in a loop with error handling."""
-    retry_count = 0
-
     while True:
         try:
-            # Step 1: Fetch player state from Bevy
             game_state = fetch_game_state()
 
-            if game_state is None:
-                print("⚠️ Warning: Could not fetch player state, retrying...")
+            if game_state is None or len(game_state.players) < 2:
+                print("⚠️ Waiting for valid game state...")
                 time.sleep(POLL_INTERVAL)
                 continue
 
-            # Check if second player exists
-            if len(game_state.players) < 2:
-                print("⚠️ Warning: Not enough players in game state")
-                time.sleep(POLL_INTERVAL)
-                continue
-
-            player = game_state.players[1]
-            print("📦 Player state:", player)
+            player_id = 1
+            player = game_state.players[player_id]
             entity_id = player["entity"]
 
-            # Step 2: Define movement direction
-            direction = [0.0, -1.0]  # Moving down
+            # Movement settings
+            direction = [0.0, -1.0]  # Move down
             speed = 50.0
 
-            # Step 3: Calculate rotation from direction (angle in radians)
-            dx, dy = direction
-            angle_rad = math.atan2(dy, dx)  # Will be -pi/2 for [0, -1]
-
-            quat = {
-                "x": 0.0,
-                "y": 0.0,
-                "z": math.sin(angle_rad / 2),
-                "w": math.cos(angle_rad / 2),
-                "type": "Quat"
+            # Rotation toward nearest enemy
+            angle = get_nearest_enemy_angle(player, game_state.players, player_id)
+            insert_components = {
+                "hotline_miami_like::player::movement::Movement": {
+                    "direction": direction,
+                    "speed": speed
+                }
             }
 
-            # Step 4: Construct JSON-RPC request
+            if angle is not None:
+                quat = angle_to_quaternion(angle)
+                insert_components["bevy_transform::components::transform::Transform"] = {
+                    "rotation": quat
+                }
+
+            # Send insert request to Bevy
             insert_request = {
                 "id": 3,
                 "jsonrpc": "2.0",
                 "method": "bevy/insert",
                 "params": {
                     "entity": entity_id,
-                    "components": {
-                        "hotline_miami_like::player::movement::Movement": {
-                            "norm_direction": direction,
-                            "speed": speed
-                        },
-                        "Transform": {
-                            "rotation": quat
-                        }
-                    }
+                    "components": insert_components
                 }
             }
 
-            # Step 5: Send request
-            resp = requests.post(
-                GAME_SERVER_URL,
-                json=insert_request,
-                timeout=1.0
-            )
+            resp = requests.post(GAME_SERVER_URL, json=insert_request, timeout=1.0)
             resp.raise_for_status()
-
-            retry_count = 0  # Reset retry counter
             response_data = resp.json()
             print(f"✅ Server response: {response_data}")
 
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Request failed: {str(e)}")
-            retry_count += 1
-            if retry_count >= MAX_RETRIES:
-                print("🚨 Max retries reached, exiting...")
-                break
-            time.sleep(RETRY_DELAY)
-            continue
+            # Reward if player is facing enemy
+            reward = reward_for_facing(game_state, player_id)
+            if reward > 0:
+                print(f"🎯 Facing enemy — reward: {reward:.2f}")
 
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Network error: {e}")
+            time.sleep(POLL_INTERVAL)
+            continue
         except Exception as e:
-            print(f"❌ Unexpected error: {str(e)}")
+            print(f"❌ Unexpected error: {e}")
             time.sleep(POLL_INTERVAL)
             continue
 
-        # Step 6: Wait before next iteration
         time.sleep(POLL_INTERVAL)
 
 

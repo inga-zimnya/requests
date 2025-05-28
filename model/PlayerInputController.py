@@ -4,11 +4,8 @@ from typing import Optional, Dict
 import sys
 import os
 
-
-# Add the root directory to the Python path
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
-
 
 class PlayerInputController:
     def __init__(self, server_url: str = "http://127.0.0.1:15702/", player_index: int = 1):
@@ -16,7 +13,6 @@ class PlayerInputController:
         self.player_index = player_index
 
     def _send_input_state(self, input_state: Dict[str, bool]) -> bool:
-        """Send PlayerInput component update with boolean flags"""
         try:
             game_state = fetch_game_state()
             if game_state is None:
@@ -40,28 +36,16 @@ class PlayerInputController:
                         "hotline_miami_like::player::input::PlayerInput": input_state
                     }
                 }
-                # "id": 3,
-                # "jsonrpc": "2.0",
-                # "method": "bevy/get",
-                # "params": {
-                #     "entity": entity_id,
-                #     "components": [
-                #         "hotline_miami_like::player::input::PlayerInput"]
-
-                # }
             }
 
             resp = requests.post(self.server_url, json=request, timeout=1.0)
             resp.raise_for_status()
-            print(
-                f"📤 Sent PlayerInput: {input_state}. Response: {resp.json()}")
+            print(f"📤 Sent PlayerInput: {input_state}. Response: {resp.json()}")
             return True
 
         except Exception as e:
             print(f"❌ Input command failed: {e}")
             return False
-
-    # === Convenience methods ===
 
     def press_foot(self) -> bool:
         return self._send_input_state({
@@ -74,7 +58,6 @@ class PlayerInputController:
         })
 
     def clear_input(self) -> bool:
-        """Send a neutral input state to clear all buttons"""
         return self._send_input_state({
             "is_shoot_button_pressed": False,
             "is_shoot_button_just_pressed": False,

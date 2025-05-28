@@ -42,7 +42,7 @@ def update_ai_component():
                     "entity": entity_id,
                     "components": {
                         "hotline_miami_like::player::movement::Movement": {
-                            "norm_direction": [0.0, -1.0],
+                            "direction": [0.0, -1.0],
                             "speed": 50.0
                         },
                     }
