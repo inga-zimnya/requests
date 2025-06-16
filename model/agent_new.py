@@ -174,19 +174,30 @@ def map_action(action_idx: int, movement_ctrl: PlayerMovementController,
     if not current_gs:
         return
 
-    # Movement actions
+    pos = player_state.get('position', [0, 0])
+
+    # Safety check - don't move if very close to pickup
+    pickups = current_gs.pickup_positions()
+    if any(math.dist(pos, pu) < 1.2 for pu in pickups):
+        if DEBUG and action_idx < 4:  # Movement action
+            print("🚫 Too close to pickup, skipping movement")
+        return
+
+    # Movement handling
     if action_idx < 4:
         vectors = [(0, 1), (0, -1), (-1, 0), (1, 0)]
         movement_ctrl.move_analog(*vectors[action_idx])
 
-    # Pickup action
+    # Pickup with retry logic
     elif action_idx == 4 and not has_gun(player_state):
-        input_ctrl.press_pickup()
-        if DEBUG:
-            print("🧲 Attempting pickup")
+        for attempt in range(3):
+            if input_ctrl.press_pickup():
+                if DEBUG:
+                    print(f"✅ Pickup success on attempt {attempt + 1}")
+                break
+            time.sleep(0.1)
 
-    # Auto-rotation toward targets
-    pos = player_state.get('position', [0, 0])
+    # Target acquisition
     targets = []
     targets += current_gs.pickup_positions()
     for y, row in enumerate(current_gs.walls):
@@ -203,10 +214,9 @@ def map_action(action_idx: int, movement_ctrl: PlayerMovementController,
         angle = math.atan2(dy, dx)
         movement_ctrl.set_ai_rotation(angle)
 
-    # Shooting when appropriate
+    # Shooting logic
     if has_gun(player_state) and random.random() < 0.2:
         input_ctrl.press_shoot()
-
 
 # --- Reward Calculation ---
 def compute_reward(prev_state: ParsedGameState, curr_state: ParsedGameState, agent_id: int) -> float:
