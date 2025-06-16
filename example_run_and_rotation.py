@@ -4,6 +4,8 @@ import time
 from typing import Optional, Tuple
 from main import fetch_game_state  # Assumes this returns ParsedGameState-like structure
 
+from model.PlayerInputController import PlayerInputController
+
 GAME_SERVER_URL = "http://127.0.0.1:15702/"
 POLL_INTERVAL = 1.0
 
@@ -63,6 +65,8 @@ def reward_for_facing(curr_state, agent_id) -> float:
 
 
 def update_ai_component():
+    input_controller = PlayerInputController(server_url=GAME_SERVER_URL, player_index=1)  # ✅ Add this line
+
     while True:
         try:
             game_state = fetch_game_state()
@@ -94,6 +98,8 @@ def update_ai_component():
                 insert_components["bevy_transform::components::transform::Transform"] = {
                     "rotation": quat
                 }
+
+                input_controller.set_ai_rotation(angle)  # ✅ Set AiRotation via mutate_component
 
             # Send insert request to Bevy
             insert_request = {

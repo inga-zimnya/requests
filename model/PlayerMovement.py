@@ -134,49 +134,41 @@ class PlayerMovementController:
             print(f"❌ Position fetch failed: {e}")
             return None
 
-def set_rotation(self, angle_rad: float) -> bool:
-    """Set the player's rotation (in radians)"""
-    try:
-        game_state = fetch_game_state()
-        if not game_state:
-            print("⚠️ No game state available")
-            return False
+    def set_ai_rotation(self, angle: float) -> bool:
+        """Mutate the AiRotation component to set a new angle (in radians or degrees depending on game logic)."""
+        try:
+            game_state = fetch_game_state()
+            if game_state is None:
+                print("⚠️ Could not fetch game state")
+                return False
 
-        if len(game_state.players) <= self.player_index:
-            print(f"⚠️ Player index {self.player_index} out of range")
-            return False
+            if len(game_state.players) <= self.player_index:
+                print(f"⚠️ Player index {self.player_index} out of range")
+                return False
 
-        player = game_state.players[self.player_index]
-        entity_id = player["entity"]
+            player = game_state.players[self.player_index]
+            entity_id = player["entity"]
 
-        request = {
-            "id": 4,
-            "jsonrpc": "2.0",
-            "method": "bevy/insert",
-            "params": {
-                "entity": entity_id,
-                "components": {
-                    "Transform": {
-                        "rotation": {
-                            "type": "Quat",
-                            "x": 0.0,
-                            "y": 0.0,
-                            "z": math.sin(angle_rad / 2),
-                            "w": math.cos(angle_rad / 2)
-                        }
-                    }
+            request = {
+                "id": 3,
+                "jsonrpc": "2.0",
+                "method": "bevy/mutate_component",
+                "params": {
+                    "entity": entity_id,
+                    "component": "hotline_miami_like::ai::plugin::AiRotation",
+                    "path": ".angle",
+                    "value": angle
                 }
             }
-        }
 
-        resp = requests.post(self.server_url, json=request, timeout=1.0)
-        resp.raise_for_status()
-        print(f"🔁 Set rotation to {angle_rad:.2f} radians")
-        return True
+            resp = requests.post(self.server_url, json=request, timeout=1.0)
+            resp.raise_for_status()
+            print(f"🔁 Set AiRotation angle to {angle}. Response: {resp.json()}")
+            return True
 
-    except Exception as e:
-        print(f"❌ Rotation command failed: {e}")
-        return False
+        except Exception as e:
+            print(f"❌ Failed to set AiRotation: {e}")
+            return False
 
 
 def main():
@@ -229,6 +221,16 @@ def main():
             time.sleep(0.5)
 
         print("\n✅ Demo complete!")
+
+        # 4. Test setting AiRotation angle
+        print("\n=== TEST AI ROTATION ANGLE ===")
+        test_angle = math.radians(45)  # 45 degrees in radians
+        success = movement_controller.set_ai_rotation(test_angle)
+        if success:
+            print(f"✅ Successfully set AI rotation to {test_angle:.2f} radians")
+        else:
+            print("❌ Failed to set AI rotation")
+
 
     except KeyboardInterrupt:
         print("\n🛑 User stopped the demo")

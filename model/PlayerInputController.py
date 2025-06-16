@@ -86,3 +86,5 @@ class PlayerInputController:
             "is_shoot_button_just_released": False,
             "is_any_move_button_pressed": False,
         })
+
+
