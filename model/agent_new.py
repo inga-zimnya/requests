@@ -4,6 +4,8 @@ import time
 import math
 import random
 from enum import Enum
+from outcome_logger import OutcomeLogger
+
 import threading
 import numpy as np
 from typing import Tuple, Optional, Dict, List, Any
@@ -58,7 +60,6 @@ PICKUP_ATTEMPTS = actions_cfg["pickup_attempts"]
 PICKUP_DELAY = actions_cfg["pickup_delay"]
 SHOOT_PROBABILITY = actions_cfg["shoot_probability"]
 MIN_DISTANCE_TO_PICKUP_TO_SKIP_MOVE = actions_cfg["min_distance_to_pickup_to_skip_move"]
-
 
 
 # --- Constants ---
@@ -319,14 +320,28 @@ def run_training_loop(server_url: str = SERVER_URL):
     ep_rewards = [[] for _ in agent_ids]
     episode = 0
     prev_states: List[Optional[np.ndarray]] = [None] * len(agent_ids)
+    logger = OutcomeLogger()
 
     try:
         while True:
+            episode_id = f"exp_{episode}"
             start_time = time.time()
             gs = fetch_game_state()
             if not gs or any(pid not in gs.players for pid in agent_ids):
                 time.sleep(0.05)
                 continue
+
+            # Log experiment metadata
+            logger.log({
+                "type": "experiment_start",
+                "experiment_id": episode_id,
+                "agent_ids": agent_ids,
+                "start_time": start_time,
+                "params": {
+                    "characters": DESIRED_CHARACTERS,
+                    "server_url": server_url
+                }
+            })
 
             states = [state_proc.process_state(gs, pid) for pid in agent_ids]
             total_r = [0.0] * len(agent_ids)
@@ -358,6 +373,32 @@ def run_training_loop(server_url: str = SERVER_URL):
                         rewards[idx] = compute_reward(gs, next_gs, pid)
                         total_r[idx] += rewards[idx]
 
+                        # Log detailed agent state
+                        player = next_gs.players[pid]
+                        transform = player.get("Transform") or player.get("transform") or {}
+                        translation = transform.get("translation", {})
+                        rotation = transform.get("rotation", {})
+
+                        logger.log({
+                            "type": "state",
+                            "experiment_id": episode_id,
+                            "agent_id": pid,
+                            "timestamp": time.time(),
+                            "position": {
+                                "x": translation.get("x", 0),
+                                "y": translation.get("y", 0),
+                                "z": translation.get("z", 0)
+                            },
+                            "rotation": {
+                                "x": rotation.get("x", 0),
+                                "y": rotation.get("y", 0),
+                                "z": rotation.get("z", 0),
+                                "w": rotation.get("w", 1)
+                            },
+                            "reward": rewards[idx],
+                            "action": actions[idx]
+                        })
+
                 if prev_states[0] is not None:
                     rl_agent.remember(states, actions, rewards, next_states, [done] * len(agent_ids))
                 rl_agent.replay()
@@ -370,18 +411,43 @@ def run_training_loop(server_url: str = SERVER_URL):
                 avg = np.mean(ep_rewards[i][-10:]) if ep_rewards[i] else 0
                 print(f"Agent {agent_ids[i]} ep {episode}: R={total_r[i]:.1f}, Avg={avg:.1f}")
 
+                logger.log({
+                    "type": "episode_summary",
+                    "experiment_id": episode_id,
+                    "agent_id": agent_ids[i],
+                    "total_reward": total_r[i],
+                    "average_reward": avg,
+                    "episode": episode
+                })
+
             if episode % 10 == 0:
                 rl_agent.update_target_networks()
+                logger.log({
+                    "type": "sync_target_networks",
+                    "experiment_id": episode_id,
+                    "timestamp": time.time()
+                })
 
-            for c in mov_ctrls: c.stop()
-            for c in inp_ctrls: c.clear_input()
+            for c in mov_ctrls:
+                c.stop()
+            for c in inp_ctrls:
+                c.clear_input()
 
             if DEBUG:
                 loop_time = time.time() - start_time
                 print(f"⏱️ Loop time: {loop_time:.3f}s")
+                logger.log({
+                    "type": "debug",
+                    "experiment_id": episode_id,
+                    "loop_time": loop_time
+                })
 
     except KeyboardInterrupt:
         print("🚩 Training stopped by user")
+        logger.log({
+            "type": "training_stopped",
+            "timestamp": time.time()
+        })
 
 
 if __name__ == "__main__":

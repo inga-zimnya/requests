@@ -1,0 +1,8 @@
+{
+  "enabled": true,
+  "remote_url": "https://in.logtail.com",
+  "source_token": "JNoyTXiogFjy3x9kTV9qVSMt",
+  "log_fields": ["position", "velocity", "rotation", "acceleration", "reward"],
+  "local_output": "outcome.json",
+  "log_every_n_seconds": 1
+}
