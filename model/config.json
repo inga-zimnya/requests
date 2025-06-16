@@ -1,0 +1,50 @@
+{
+    "general": {
+        "debug": true,
+        "server_url": "http://127.0.0.1:15702/",
+        "desired_characters": [
+            "Lime",
+            "Orange"
+        ]
+    },
+    "dqn": {
+        "state_size": 13,
+        "action_size": 5,
+        "hidden_layers": [
+            128,
+            128
+        ],
+        "learning_rate": 0.001,
+        "gamma": 0.95,
+        "epsilon_start": 1.0,
+        "epsilon_min": 0.01,
+        "epsilon_decay": 0.995,
+        "batch_size": 32,
+        "replay_memory_size": 10000,
+        "target_update_interval": 10
+    },
+    "rewards": {
+        "movement_reward_weight": 0.1,
+        "pickup_distance_reward_weight": 0.5,
+        "gun_pickup_reward": 30.0,
+        "gun_possession_reward": 0.8,
+        "enemy_elimination_reward": 40.0,
+        "survival_reward": 0.1
+    },
+    "actions": {
+        "pickup_attempts": 3,
+        "pickup_delay": 0.2,
+        "shoot_probability": 0.2,
+        "min_distance_to_pickup_to_skip_move": 1.2
+    },
+    "training": {
+        "max_episodes": 1000,
+        "max_steps_per_episode": 200
+    },
+    "logging": {
+        "log_interval": 10,
+        "save_model": true,
+        "model_save_path": "./models/",
+        "log_rewards": true
+    }
+}

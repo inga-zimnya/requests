@@ -3,21 +3,17 @@ import math
 import requests
 from typing import Optional, List, Tuple, Dict, Any
 import time
-import random
 import sys
 import os
 from PlayerInputController import PlayerInputController  # Adjust import path as needed
-
 
 # Add the root directory to the Python path
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(root_dir)
 
-
 from main import fetch_game_state
 
 # Now import from parse_player
-
 
 class PlayerMovementController:
     def __init__(self, server_url: str = "http://127.0.0.1:15702/", player_index: int = 1):
