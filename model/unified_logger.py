@@ -65,7 +65,7 @@ class UnifiedLogger:
             return
 
         self.last_log_time = now
-        log_entry = {k: v for k, v in data.items() if not self.log_fields or k in self.log_fields}
+        log_entry = data.copy()
         log_entry["timestamp"] = datetime.utcnow().isoformat() + "Z"
 
         self.step_buffer.append(log_entry)

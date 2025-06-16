@@ -8207,5 +8207,1048 @@
     "type": "training_stopped",
     "timestamp": "2025-06-16T21:51:23.281456Z",
     "last_episode": 0
+  },
+  {
+    "type": "experiment_start",
+    "experiment_id": 0,
+    "agent_ids": [
+      0,
+      1
+    ],
+    "start_time": 1750110762.108385,
+    "params": {
+      "characters": [
+        "Lime",
+        "Orange"
+      ],
+      "server_url": "http://127.0.0.1:15702/"
+    },
+    "timestamp": "2025-06-16T21:52:42.253601Z"
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:43.256608Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.2086024250404321,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:44.745124Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 14.29822891812854,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:46.104420Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 4.978094482421875,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:47.527224Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:48.919864Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 7.960272216802207,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:50.422855Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 17.506542982085193,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:51.833592Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.14357843182304464,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:53.612294Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:55.003842Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:56.476270Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:57.674669Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 18.058117706161244,
+    "action": 1
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:52:58.995919Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.11677898486105392,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:00.433743Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 4.939185225350401,
+    "action": 1
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:02.178936Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.10002446169974043,
+    "action": 3
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:03.878878Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 20.57841265654256,
+    "action": 1
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:05.367886Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:06.713696Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 4.624996585199267,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:08.163385Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.43869323730468757,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:09.415617Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 2.619403076171875,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:10.746571Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 1.0024963422299351,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:12.198353Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:13.699627Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.10002157918643759,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:15.020064Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 1.0194751825952504,
+    "action": 3
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:16.413950Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.9088414781193229,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:17.857832Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.14019941239073583,
+    "action": 3
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:19.203033Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 20.23448099824071,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:20.766079Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 6.391476251189269,
+    "action": 3
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:22.025786Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 3
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:23.073607Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:24.666455Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:26.068098Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:27.678075Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 37.341800019937374,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:28.950938Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.10001983642578126,
+    "action": 1
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:30.364644Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:31.849953Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:33.029751Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 5.6854736328125,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:34.383040Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:35.547931Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 7.027264679599438,
+    "action": 3
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:36.777712Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.10055891299668321,
+    "action": 3
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:38.034025Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 39.39297386255061,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:39.458391Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 1
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:40.799347Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.2712797189912514,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:42.227392Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 5.592836004235503,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:43.605077Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 2.3753371729834796,
+    "action": 2
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:44.999969Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.31659547035741187,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:46.468742Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 5.492609609386243,
+    "action": 3
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:47.991911Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 19.335943464202582,
+    "action": 3
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:49.264786Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 1.0997833251953126,
+    "action": 3
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:50.727025Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 2.8861758730032236,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:52.173202Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1122375522527904,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:53.594688Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:54.679835Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 2.558225121082137,
+    "action": 0
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:56.171510Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 0.1,
+    "action": 4
+  },
+  {
+    "type": "state",
+    "experiment_id": 0,
+    "agent_id": 0,
+    "timestamp": "2025-06-16T21:53:57.364174Z",
+    "position": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "rotation": {
+      "x": 0,
+      "y": 0,
+      "z": 0,
+      "w": 1
+    },
+    "reward": 6.419816684396416,
+    "action": 0
   }
 ]
