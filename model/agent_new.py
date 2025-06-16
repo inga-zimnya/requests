@@ -4,7 +4,9 @@ import time
 import math
 import random
 from enum import Enum
-from outcome_logger import OutcomeLogger
+
+from unified_logger import UnifiedLogger
+logger = UnifiedLogger(config_path="logging_config.json")
 
 import threading
 import numpy as np
@@ -320,19 +322,19 @@ def run_training_loop(server_url: str = SERVER_URL):
     ep_rewards = [[] for _ in agent_ids]
     episode = 0
     prev_states: List[Optional[np.ndarray]] = [None] * len(agent_ids)
-    logger = OutcomeLogger()
+    logger = UnifiedLogger()
 
     try:
         while True:
-            episode_id = f"exp_{episode}"
+            episode_id = episode  # use integer for experiment_number
             start_time = time.time()
             gs = fetch_game_state()
             if not gs or any(pid not in gs.players for pid in agent_ids):
                 time.sleep(0.05)
                 continue
 
-            # Log experiment metadata
-            logger.log({
+            # Log experiment start as a step log (or you can skip this if you want)
+            logger.log_step({
                 "type": "experiment_start",
                 "experiment_id": episode_id,
                 "agent_ids": agent_ids,
@@ -341,7 +343,7 @@ def run_training_loop(server_url: str = SERVER_URL):
                     "characters": DESIRED_CHARACTERS,
                     "server_url": server_url
                 }
-            })
+            }, force=True)
 
             states = [state_proc.process_state(gs, pid) for pid in agent_ids]
             total_r = [0.0] * len(agent_ids)
@@ -373,13 +375,13 @@ def run_training_loop(server_url: str = SERVER_URL):
                         rewards[idx] = compute_reward(gs, next_gs, pid)
                         total_r[idx] += rewards[idx]
 
-                        # Log detailed agent state
                         player = next_gs.players[pid]
                         transform = player.get("Transform") or player.get("transform") or {}
                         translation = transform.get("translation", {})
                         rotation = transform.get("rotation", {})
 
-                        logger.log({
+                        # Log each step's state data
+                        logger.log_step({
                             "type": "state",
                             "experiment_id": episode_id,
                             "agent_id": pid,
@@ -401,53 +403,39 @@ def run_training_loop(server_url: str = SERVER_URL):
 
                 if prev_states[0] is not None:
                     rl_agent.remember(states, actions, rewards, next_states, [done] * len(agent_ids))
-                rl_agent.replay()
+                    rl_agent.replay()
 
-                prev_states, states, gs = states, next_states, next_gs
-                episode += 1
+                states = next_states
+                gs = next_gs
 
-            for i in range(len(agent_ids)):
-                ep_rewards[i].append(total_r[i])
-                avg = np.mean(ep_rewards[i][-10:]) if ep_rewards[i] else 0
-                print(f"Agent {agent_ids[i]} ep {episode}: R={total_r[i]:.1f}, Avg={avg:.1f}")
+                # You might want to define when done=True here,
+                # otherwise this is an infinite inner loop
+                # For example, break after some number of steps or a terminal condition
 
-                logger.log({
-                    "type": "episode_summary",
-                    "experiment_id": episode_id,
-                    "agent_id": agent_ids[i],
-                    "total_reward": total_r[i],
-                    "average_reward": avg,
-                    "episode": episode
-                })
+            # At the end of episode, log experiment summary
+            logger.log_experiment_summary(
+                experiment_number=episode_id,
+                parameters={
+                    "characters": DESIRED_CHARACTERS,
+                    "server_url": server_url
+                },
+                metrics={
+                    "total_rewards": total_r,
+                    "duration": time.time() - start_time
+                },
+                snapshots=[]  # you can add any final snapshots here if you want
+            )
 
-            if episode % 10 == 0:
-                rl_agent.update_target_networks()
-                logger.log({
-                    "type": "sync_target_networks",
-                    "experiment_id": episode_id,
-                    "timestamp": time.time()
-                })
-
-            for c in mov_ctrls:
-                c.stop()
-            for c in inp_ctrls:
-                c.clear_input()
-
-            if DEBUG:
-                loop_time = time.time() - start_time
-                print(f"⏱️ Loop time: {loop_time:.3f}s")
-                logger.log({
-                    "type": "debug",
-                    "experiment_id": episode_id,
-                    "loop_time": loop_time
-                })
+            episode += 1
 
     except KeyboardInterrupt:
-        print("🚩 Training stopped by user")
-        logger.log({
+        print("🛑 Training interrupted by user")
+        # Log training stop as a forced step log
+        logger.log_step({
             "type": "training_stopped",
-            "timestamp": time.time()
-        })
+            "timestamp": time.time(),
+            "last_episode": episode
+        }, force=True)
 
 
 if __name__ == "__main__":

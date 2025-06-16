@@ -1,8 +1,12 @@
 {
   "enabled": true,
-  "remote_url": "https://in.logtail.com",
+  "step_output": "logs/step_log.json",
+  "summary_output": "logs/experiment_log.json",
+  "remote_log_steps": true,
+  "remote_log_summary": true,
+  "remote_url": "https://s1350149.eu-nbg-2.betterstackdata.com/",
   "source_token": "JNoyTXiogFjy3x9kTV9qVSMt",
-  "log_fields": ["position", "velocity", "rotation", "acceleration", "reward"],
+  "log_fields": [],
   "local_output": "outcome.json",
   "log_every_n_seconds": 1
 }
