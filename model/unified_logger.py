@@ -55,6 +55,9 @@ class UnifiedLogger:
                 print(f"[Logger] Remote log sent.")
             except requests.RequestException as e:
                 print(f"⚠️ Remote logging failed: {e}")
+                print("Payload sent:", json.dumps(payload, indent=2))
+                print("Headers used:", headers)
+                print("URL:", self.remote_url)
 
     def log_step(self, data: Dict[str, Any], force=False):
         if not self.enabled:

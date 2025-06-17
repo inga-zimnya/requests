@@ -3,6 +3,7 @@ import os
 import time
 import math
 import random
+from datetime import datetime
 from enum import Enum
 
 from unified_logger import UnifiedLogger
@@ -376,29 +377,39 @@ def run_training_loop(server_url: str = SERVER_URL):
                         total_r[idx] += rewards[idx]
 
                         player = next_gs.players[pid]
-                        transform = player.get("Transform") or player.get("transform") or {}
-                        translation = transform.get("translation", {})
-                        rotation = transform.get("rotation", {})
+                        position = player.get("position", (0.0, 0.0))
+                        velocity = player.get("velocity", (0.0, 0.0))
+                        calc_velocity = player.get("calculated_velocity", None)
 
                         # Log each step's state data
                         logger.log_step({
                             "type": "state",
                             "experiment_id": episode_id,
                             "agent_id": pid,
-                            "timestamp": time.time(),
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "character": str(player.get("character", "Unknown")),
+                            "device": str(player.get("device", "Unknown")),
                             "position": {
-                                "x": translation.get("x", 0),
-                                "y": translation.get("y", 0),
-                                "z": translation.get("z", 0)
+                                "x": position[0],
+                                "y": position[1]
                             },
-                            "rotation": {
-                                "x": rotation.get("x", 0),
-                                "y": rotation.get("y", 0),
-                                "z": rotation.get("z", 0),
-                                "w": rotation.get("w", 1)
-                            },
+                            "rotation": player.get("rotation", 0.0),
                             "reward": rewards[idx],
-                            "action": actions[idx]
+                            "action": actions[idx],
+                            "health": player.get("health", -1),
+                            "velocity": {
+                                "x": velocity[0],
+                                "y": velocity[1]
+                            },
+                            "calculated_velocity": {
+                                "x": calc_velocity[0] if calc_velocity else None,
+                                "y": calc_velocity[1] if calc_velocity else None
+                            },
+                            "calculated_speed": player.get("calculated_speed", None),
+                            "is_shooting": player.get("is_shooting", False),
+                            "is_kicking": player.get("is_kicking", False),
+                            "is_moving": player.get("is_moving", False),
+                            "inventory": player.get("inventory", [])
                         })
 
                 if prev_states[0] is not None:
