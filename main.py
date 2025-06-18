@@ -128,6 +128,7 @@ def fetch_game_state() -> Optional[ParsedGameState]:
                 "data": {
                     "components": [
                         "hotline_miami_like::player::spawn::Player",
+                        "hotline_miami_like::player::input::PlayerInput",
                         "bevy_transform::components::transform::Transform",
                         "hotline_miami_like::player::damagable::Damagable",
                         "hotline_miami_like::player::movement::Movement"
@@ -188,7 +189,11 @@ def fetch_game_state() -> Optional[ParsedGameState]:
             try:
                 comps = ent["components"]
                 player_comp = comps["hotline_miami_like::player::spawn::Player"]
+                input_comp = comps.get("hotline_miami_like::player::input::PlayerInput", {})
+                player_comp.update(input_comp)
+
                 entity_id = ent.get("entity", idx)
+                print(f"\n[DEBUG] Player {entity_id} raw component:\n{json.dumps(player_comp, indent=2)}")
 
                 # Safe component access with defaults
                 transform = comps.get(
@@ -246,7 +251,7 @@ def fetch_game_state() -> Optional[ParsedGameState]:
                         else PlayerDevice.GAMEPAD
                     ),
                     "is_shooting": bool(player_comp.get("is_shoot_button_pressed", False)),
-                    "is_kicking": bool(player_comp.get("is_kicking", False)),
+                    "is_kicking": bool(player_comp.get("is_foot_button_just_pressed", False)),
                     "is_moving": bool(player_comp.get("is_any_move_button_pressed", False)),
                     "is_grounded": True,
                     "health": float(damagable.get("health", 100.0)),

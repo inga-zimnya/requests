@@ -29,7 +29,9 @@
         "gun_pickup_reward": 30.0,
         "gun_possession_reward": 0.8,
         "enemy_elimination_reward": 40.0,
-        "survival_reward": 0.1
+        "survival_reward": 0.1,
+        "rotation_reward_weight": 0.05,
+        "shooting_reward": 1.0
     },
     "actions": {
         "pickup_attempts": 3,
@@ -38,8 +40,8 @@
         "min_distance_to_pickup_to_skip_move": 1.2
     },
     "training": {
-        "max_episodes": 1000,
-        "max_steps_per_episode": 200
+        "max_episodes": 2,
+        "max_steps_per_episode": 2
     },
     "logging": {
         "log_interval": 10,

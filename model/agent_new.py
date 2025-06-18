@@ -57,6 +57,9 @@ GUN_PICKUP_REWARD = rewards_cfg["gun_pickup_reward"]
 GUN_POSSESSION_REWARD = rewards_cfg["gun_possession_reward"]
 ENEMY_ELIMINATION_REWARD = rewards_cfg["enemy_elimination_reward"]
 SURVIVAL_REWARD = rewards_cfg["survival_reward"]
+ROTATION_REWARD_WEIGHT = rewards_cfg.get("rotation_reward_weight")
+SHOOTING_REWARD = rewards_cfg.get("shooting_reward", 0.0)
+
 
 # Actions config
 PICKUP_ATTEMPTS = actions_cfg["pickup_attempts"]
@@ -311,6 +314,18 @@ def compute_reward(prev_state: ParsedGameState, curr_state: ParsedGameState, age
             r += ENEMY_ELIMINATION_REWARD
 
     r += SURVIVAL_REWARD
+
+    # 🔁 New: Rotation reward (yaw difference in radians or degrees)
+    if 'rotation' in prev_p and 'rotation' in curr_p:
+        prev_yaw = prev_p['rotation']
+        curr_yaw = curr_p['rotation']
+        delta_yaw = abs(curr_yaw - prev_yaw)
+        # Optional: normalize to [-180, 180] or [0, 360] if needed
+        r += delta_yaw * ROTATION_REWARD_WEIGHT
+
+    if curr_p.get('is_shooting', False):
+        r += SHOOTING_REWARD
+
     return r
 
 
@@ -406,9 +421,9 @@ def run_training_loop(server_url: str = SERVER_URL):
                                 "y": calc_velocity[1] if calc_velocity else None
                             },
                             "calculated_speed": player.get("calculated_speed", None),
-                            "is_shooting": player.get("is_shooting", False),
-                            "is_kicking": player.get("is_kicking", False),
-                            "is_moving": player.get("is_moving", False),
+                            "is_shooting": bool(player.get("is_shooting", False)),
+                            "is_kicking": bool(player.get("is_kicking", False)),
+                            "is_moving": bool(player.get("is_moving", False)),
                             "inventory": player.get("inventory", [])
                         })
 
