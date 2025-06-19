@@ -1,0 +1,20 @@
+{
+  "type": "experiment_summary",
+  "timestamp": "2025-06-19T19:08:17.817941Z",
+  "experiment_number": 379,
+  "parameters": {
+    "characters": [
+      "Lime",
+      "Orange"
+    ],
+    "server_url": "http://127.0.0.1:15702/"
+  },
+  "metrics": {
+    "total_rewards": [
+      48.059781413009006,
+      10.145837330664225
+    ],
+    "duration": 5.049029588699341
+  },
+  "snapshots": []
+}

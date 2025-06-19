@@ -1,0 +1,42 @@
+{
+  "type": "experiment_summary",
+  "timestamp": "2025-06-19T20:51:21.458304Z",
+  "experiment_number": 72,
+  "parameters": {
+    "input_parameters": {
+      "characters": [
+        "Lime",
+        "Orange"
+      ],
+      "server_url": "http://127.0.0.1:15702/",
+      "rewards": {
+        "movement_reward_weight": 0.1,
+        "pickup_distance_reward_weight": 0.5,
+        "gun_pickup_reward": 30.0,
+        "gun_possession_reward": 0.8,
+        "enemy_elimination_reward": 40.0,
+        "survival_reward": 0.1,
+        "rotation_reward_weight": 0.05,
+        "shooting_reward": 5.0
+      },
+      "epsilon_decay": null,
+      "learning_rate": null,
+      "batch_size": null,
+      "target_update_interval": null
+    },
+    "characters": [
+      "Lime",
+      "Orange"
+    ],
+    "server_url": "http://127.0.0.1:15702/"
+  },
+  "metrics": {
+    "total_rewards": [
+      10.159373494349646,
+      5.1068018296712
+    ],
+    "duration": 7.661513090133667,
+    "episode_count": 72
+  },
+  "snapshots": []
+}

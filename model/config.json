@@ -31,11 +31,11 @@
         "enemy_elimination_reward": 40.0,
         "survival_reward": 0.1,
         "rotation_reward_weight": 0.05,
-        "shooting_reward": 1.0
+        "shooting_reward": 5.0
     },
     "actions": {
         "pickup_attempts": 3,
-        "pickup_delay": 0.2,
+        "pickup_delay": 0.05,
         "shoot_probability": 0.2,
         "min_distance_to_pickup_to_skip_move": 1.2
     },

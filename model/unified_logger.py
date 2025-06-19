@@ -88,6 +88,7 @@ class UnifiedLogger:
             return
 
         summary_entry = {
+            "type": "experiment_summary",  # ✅ Required for Longtail filters
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "experiment_number": experiment_number,
             "parameters": parameters,

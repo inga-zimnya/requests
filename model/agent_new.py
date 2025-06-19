@@ -67,6 +67,21 @@ PICKUP_DELAY = actions_cfg["pickup_delay"]
 SHOOT_PROBABILITY = actions_cfg["shoot_probability"]
 MIN_DISTANCE_TO_PICKUP_TO_SKIP_MOVE = actions_cfg["min_distance_to_pickup_to_skip_move"]
 
+# Training config
+MAX_STEPS_PER_EPISODE = training_cfg["max_steps_per_episode"]
+
+
+def extract_input_parameters(config: dict) -> dict:
+    return {
+        "characters": config.get("general", {}).get("desired_characters", []),
+        "server_url": config.get("general", {}).get("server_url", ""),
+        "rewards": config.get("rewards", {}),
+        "epsilon_decay": config.get("training", {}).get("epsilon_decay"),
+        "learning_rate": config.get("training", {}).get("learning_rate"),
+        "batch_size": config.get("training", {}).get("batch_size"),
+        "target_update_interval": config.get("training", {}).get("target_update_interval")
+    }
+
 
 # --- Constants ---
 class PlayerCharacter(str, Enum):
@@ -330,15 +345,16 @@ def compute_reward(prev_state: ParsedGameState, curr_state: ParsedGameState, age
 
 
 # --- Main Training Loop ---
-def run_training_loop(server_url: str = SERVER_URL):
+def run_training_loop(server_url: str = SERVER_URL, logger: UnifiedLogger = logger):
     print(f"🤖 Starting training for agents: {DESIRED_CHARACTERS}")
     agent_ids, mov_ctrls, inp_ctrls = setup_agents(server_url, DESIRED_CHARACTERS)
     state_proc = StateProcessor()
     rl_agent = MultiAgentRL(num_agents=len(agent_ids))
     ep_rewards = [[] for _ in agent_ids]
     episode = 0
+    episode_count = 0
     prev_states: List[Optional[np.ndarray]] = [None] * len(agent_ids)
-    logger = UnifiedLogger()
+    os.makedirs("summaries", exist_ok=True)
 
     try:
         while True:
@@ -364,6 +380,8 @@ def run_training_loop(server_url: str = SERVER_URL):
             states = [state_proc.process_state(gs, pid) for pid in agent_ids]
             total_r = [0.0] * len(agent_ids)
             done = False
+            step_count = 0
+            snapshots = []
 
             while not done:
                 threads = []
@@ -427,6 +445,10 @@ def run_training_loop(server_url: str = SERVER_URL):
                             "inventory": player.get("inventory", [])
                         })
 
+                step_count += 1
+                if step_count >= MAX_STEPS_PER_EPISODE:
+                    done = True
+
                 if prev_states[0] is not None:
                     rl_agent.remember(states, actions, rewards, next_states, [done] * len(agent_ids))
                     rl_agent.replay()
@@ -438,21 +460,33 @@ def run_training_loop(server_url: str = SERVER_URL):
                 # otherwise this is an infinite inner loop
                 # For example, break after some number of steps or a terminal condition
 
-            # At the end of episode, log experiment summary
-            logger.log_experiment_summary(
-                experiment_number=episode_id,
-                parameters={
+            input_params = extract_input_parameters(config)
+
+            summary_entry = {"type": "experiment_summary", "timestamp": datetime.utcnow().isoformat() + "Z",
+                             "experiment_number": episode_id, "parameters": {
+                    "input_parameters": input_params,
                     "characters": DESIRED_CHARACTERS,
                     "server_url": server_url
-                },
-                metrics={
+                }, "metrics": {
                     "total_rewards": total_r,
-                    "duration": time.time() - start_time
-                },
-                snapshots=[]  # you can add any final snapshots here if you want
+                    "duration": time.time() - start_time,
+                    "episode_count": episode_count
+                }, "snapshots": snapshots}
+
+            logger.log_experiment_summary(
+                experiment_number=summary_entry["experiment_number"],
+                parameters=summary_entry["parameters"],
+                metrics=summary_entry["metrics"],
+                snapshots=summary_entry["snapshots"]
             )
 
+            summary_path = os.path.join("summaries", f"summary_episode_{episode_id}.json")
+
+            with open(summary_path, "w") as f:
+                json.dump(summary_entry, f, indent=2)
+
             episode += 1
+            episode_count += 1
 
     except KeyboardInterrupt:
         print("🛑 Training interrupted by user")
