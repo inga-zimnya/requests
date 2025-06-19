@@ -445,6 +445,9 @@ def run_training_loop(server_url: str = SERVER_URL, logger: UnifiedLogger = logg
                             "inventory": player.get("inventory", [])
                         })
 
+                        max_reward = max(total_r)
+                        wins = [1 if r == max_reward else 0 for r in total_r]
+
                 step_count += 1
                 if step_count >= MAX_STEPS_PER_EPISODE:
                     done = True
@@ -470,7 +473,8 @@ def run_training_loop(server_url: str = SERVER_URL, logger: UnifiedLogger = logg
                 }, "metrics": {
                     "total_rewards": total_r,
                     "duration": time.time() - start_time,
-                    "episode_count": episode_count
+                    "episode_count": episode_count,
+                    "wins": wins
                 }, "snapshots": snapshots}
 
             logger.log_experiment_summary(
