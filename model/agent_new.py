@@ -21,6 +21,8 @@ from main import fetch_game_state, ParsedGameState
 from model.PlayerMovement import PlayerMovementController
 from model.PlayerInputController import PlayerInputController
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 with open("config.json", "r", encoding="utf-8") as f:
     config = json.load(f)
 
@@ -59,6 +61,8 @@ ENEMY_ELIMINATION_REWARD = rewards_cfg["enemy_elimination_reward"]
 SURVIVAL_REWARD = rewards_cfg["survival_reward"]
 ROTATION_REWARD_WEIGHT = rewards_cfg.get("rotation_reward_weight")
 SHOOTING_REWARD = rewards_cfg.get("shooting_reward", 0.0)
+KICK_NEAR_GLASS_REWARD = rewards_cfg.get("kick_near_glass_reward", 0.0)
+LOOK_TOWARD_TARGET_REWARD_WEIGHT = rewards_cfg.get("look_toward_target_reward_weight", 0.0)
 
 
 # Actions config
@@ -269,31 +273,38 @@ def map_action(action_idx: int, movement_ctrl: PlayerMovementController,
                 time.sleep(PICKUP_DELAY)
                 break
 
-    # If player has gun, avoid kicking or throwing it accidentally by limiting input
-    # Only shoot with some probability, no kick or throw command here
-    if has_weapon:
-        # Rotate towards closest target (pickup, glass, enemy)
-        targets = []
-        targets += current_gs.pickup_positions()
-        for y, row in enumerate(current_gs.walls):
-            for x, tile in enumerate(row):
-                if tile == 'Glass':
-                    targets.append([x, y])
-        for pid, enemy in current_gs.players.items():
-            if pid != player_state.get('id'):
-                targets.append(enemy.get('position', [0, 0]))
+    # 🔁 Always rotate toward closest target, even without weapon
+    targets = []
+    targets += current_gs.pickup_positions()
+    for y, row in enumerate(current_gs.walls):
+        for x, tile in enumerate(row):
+            if tile == 'Glass':
+                targets.append([x, y])
+    for pid, enemy in current_gs.players.items():
+        if pid != player_state.get('id'):
+            targets.append(enemy.get('position', [0, 0]))
 
-        if targets:
-            closest = min(targets, key=lambda t: math.dist(t, pos))
-            dx, dy = closest[0] - pos[0], closest[1] - pos[1]
-            angle = math.atan2(dy, dx)
-            movement_ctrl.set_ai_rotation(angle)
+    if targets:
+        closest = min(targets, key=lambda t: math.dist(t, pos))
+        dx, dy = closest[0] - pos[0], closest[1] - pos[1]
+        angle = math.atan2(dy, dx)
+        movement_ctrl.set_ai_rotation(angle)
 
-        # Shoot occasionally
-        if random.random() < SHOOT_PROBABILITY:
-            input_ctrl.press_shoot()
+        # Action 5: Shoot (if agent has a gun)
+    elif action_idx == 5 and has_weapon:
+        input_ctrl.press_shoot()
+        if DEBUG:
+            print("🔫 Shooting action executed")
 
-    # If no gun, don't shoot or kick
+    # Action 6: Kick (only if agent is unarmed and not too close to a pickup)
+    elif action_idx == 6 and not has_weapon:
+        too_close_to_gun = any(math.dist(pos, gun) < 1.5 for gun in pickups)
+        if not too_close_to_gun:
+            input_ctrl.press_foot()
+            if DEBUG:
+                print("🦶 Kicking (no gun nearby)")
+        elif DEBUG:
+            print("❌ Skipping kick — too close to gun or already armed")
 
 
 # --- Reward Calculation ---
@@ -331,15 +342,48 @@ def compute_reward(prev_state: ParsedGameState, curr_state: ParsedGameState, age
     r += SURVIVAL_REWARD
 
     # 🔁 New: Rotation reward (yaw difference in radians or degrees)
-    if 'rotation' in prev_p and 'rotation' in curr_p:
-        prev_yaw = prev_p['rotation']
-        curr_yaw = curr_p['rotation']
-        delta_yaw = abs(curr_yaw - prev_yaw)
-        # Optional: normalize to [-180, 180] or [0, 360] if needed
-        r += delta_yaw * ROTATION_REWARD_WEIGHT
+    # Reward for rotating towards closest target (pickup, glass, or enemy)
+    if 'rotation' in curr_p:
+        agent_pos = curr_p['position']
+        agent_yaw = curr_p['rotation']
+
+        # Collect targets
+        targets = []
+        targets += curr_state.pickup_positions()
+
+        for y, row in enumerate(curr_state.walls):
+            for x, tile in enumerate(row):
+                if tile == 'Glass':
+                    targets.append([x, y])
+
+        for pid, p in curr_state.players.items():
+            if pid != agent_id:
+                targets.append(p.get("position", [0, 0]))
+
+        if targets:
+            # Find closest target
+            closest = min(targets, key=lambda t: math.dist(t, agent_pos))
+            dx, dy = closest[0] - agent_pos[0], closest[1] - agent_pos[1]
+            target_angle = math.atan2(dy, dx)
+
+            # Compute angle difference
+            angle_diff = abs((agent_yaw - target_angle + math.pi) % (2 * math.pi) - math.pi)
+            alignment_score = max(0, (math.pi - angle_diff) / math.pi)  # 1 when aligned, 0 when opposite
+            r += alignment_score * ROTATION_REWARD_WEIGHT
 
     if curr_p.get('is_shooting', False):
         r += SHOOTING_REWARD
+
+    # Reward for kicking near glass tiles
+    if curr_p.get("is_kicking", False):
+        px, py = curr_p['position']
+        for y, row in enumerate(curr_state.walls):
+            for x, tile in enumerate(row):
+                if tile == "Glass":
+                    distance = math.dist([x, y], [px, py])
+                    if distance < 1.5:
+                        r += KICK_NEAR_GLASS_REWARD
+                        break
 
     return r
 
@@ -411,7 +455,7 @@ def run_training_loop(server_url: str = SERVER_URL, logger: UnifiedLogger = logg
 
                         player = next_gs.players[pid]
                         position = player.get("position", (0.0, 0.0))
-                        velocity = player.get("velocity", (0.0, 0.0))
+                        movement = player.get("movement", {})
                         calc_velocity = player.get("calculated_velocity", None)
 
                         # Log each step's state data
@@ -430,9 +474,12 @@ def run_training_loop(server_url: str = SERVER_URL, logger: UnifiedLogger = logg
                             "reward": rewards[idx],
                             "action": actions[idx],
                             "health": player.get("health", -1),
-                            "velocity": {
-                                "x": velocity[0],
-                                "y": velocity[1]
+                            "movement": {
+                                "speed": movement.get("speed", 0.0),
+                                "direction": {
+                                    "x": movement.get("direction", (0.0, 0.0))[0],
+                                    "y": movement.get("direction", (0.0, 0.0))[1]
+                                }
                             },
                             "calculated_velocity": {
                                 "x": calc_velocity[0] if calc_velocity else None,

@@ -1,6 +1,6 @@
 {
   "type": "experiment_summary",
-  "timestamp": "2025-06-19T20:53:32.433175Z",
+  "timestamp": "2025-06-21T10:20:03.866165Z",
   "experiment_number": 89,
   "parameters": {
     "input_parameters": {
@@ -16,8 +16,10 @@
         "gun_possession_reward": 0.8,
         "enemy_elimination_reward": 40.0,
         "survival_reward": 0.1,
-        "rotation_reward_weight": 0.05,
-        "shooting_reward": 5.0
+        "rotation_reward_weight": 10.0,
+        "shooting_reward": 5.0,
+        "kick_near_glass_reward": 10.0,
+        "look_toward_target_reward_weight": 10.0
       },
       "epsilon_decay": null,
       "learning_rate": null,
@@ -32,11 +34,15 @@
   },
   "metrics": {
     "total_rewards": [
-      0.2020857833778077,
-      2.8194926599009107
+      4.223454138628019,
+      6.821487961691566
     ],
-    "duration": 6.738009452819824,
-    "episode_count": 89
+    "duration": 2.827775478363037,
+    "episode_count": 89,
+    "wins": [
+      0,
+      1
+    ]
   },
   "snapshots": []
 }

@@ -75,6 +75,7 @@ class PlayerState(TypedDict):
     animation_state: Optional[str]
     calculated_velocity: Optional[Tuple[float, float]]
     calculated_speed: Optional[float]
+    movement: Dict[str, Any]
 
 
 @dataclass
@@ -206,7 +207,7 @@ def fetch_game_state() -> Optional[ParsedGameState]:
                 )
                 movement = comps.get(
                     "hotline_miami_like::player::movement::Movement",
-                    {"velocity_x": 0.0, "velocity_y": 0.0}
+                    {"speed": 0.0, "direction": [0.0, 0.0]}
                 )
 
                 # Safe rotation calculation
@@ -234,11 +235,14 @@ def fetch_game_state() -> Optional[ParsedGameState]:
 
                 # Safe velocity parsing
                 try:
-                    vel_x = float(movement.get("velocity_x", 0.0))
-                    vel_y = float(movement.get("velocity_y", 0.0))
-                except ValueError:
-                    vel_x, vel_y = 0.0, 0.0
-                    print(f"Invalid velocity for player {idx}")
+                    movement_speed = float(movement.get("speed", 0.0))
+                    movement_direction = movement.get("direction", [0.0, 0.0])
+                    if not isinstance(movement_direction, (list, tuple)) or len(movement_direction) != 2:
+                        movement_direction = [0.0, 0.0]
+                except Exception as e:
+                    print(f"Error parsing Movement component: {e}")
+                    movement_speed = 0.0
+                    movement_direction = [0.0, 0.0]
 
                 players[idx] = {
                     "entity": entity_id,
@@ -256,7 +260,10 @@ def fetch_game_state() -> Optional[ParsedGameState]:
                     "is_grounded": True,
                     "health": float(damagable.get("health", 100.0)),
                     "inventory": [],
-                    "velocity": (vel_x, vel_y),
+                    "movement": {
+                        "speed": movement_speed,
+                        "direction": tuple(movement_direction)
+                    },
                     "animation_state": None,
                     "calculated_velocity": None,
                     "calculated_speed": None
@@ -323,8 +330,7 @@ def update_calculated_velocity(current_state: ParsedGameState,
 
 def print_player_details(player: PlayerState, player_id: Any):
     """Prints detailed information about a player."""
-    reported_velocity = player.get('velocity', (0.0, 0.0))
-    reported_speed = math.sqrt(reported_velocity[0] ** 2 + reported_velocity[1] ** 2)
+    movement = player.get('movement', {})
 
     print(f"\nPlayer ID {player_id} ({player.get('character', PlayerCharacter.ORANGE).value}):")
     print(f"  Entity ID: {player.get('entity')}")
@@ -342,8 +348,9 @@ def print_player_details(player: PlayerState, player_id: Any):
                 f"{'MOVING' if player.get('is_moving') else ''}"
     print(f"  State: {state_str.strip() if state_str.strip() else 'IDLE'}")
     print(f"  Health: {player.get('health', 0.0):.1f}")
-    print(f"  Reported Velocity (Rapier): ({reported_velocity[0]:.1f}, {reported_velocity[1]:.1f})")
-    print(f"  Reported Speed (Rapier): {reported_speed:.1f} units/sec")
+    print(f"  Movement Component - Speed: {movement.get('speed', 0.0):.1f}  "
+          f"Dir: ({movement.get('direction', (0.0, 0.0))[0]:.2f}, "
+          f"{movement.get('direction', (0.0, 0.0))[1]:.2f})")
 
     if player.get('calculated_velocity') is not None:
         calc_vel = player['calculated_velocity']
