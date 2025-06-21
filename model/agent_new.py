@@ -150,8 +150,9 @@ class MultiAgentRL:
         self.batch_size = BATCH_SIZE
         self.memory = deque(maxlen=REPLAY_MEMORY_SIZE)
 
-        self.policy_nets = [DQN(state_size, action_size) for _ in range(num_agents)]
-        self.target_nets = [DQN(state_size, action_size) for _ in range(num_agents)]
+        self.policy_nets = [DQN(state_size, action_size).to(device) for _ in range(num_agents)]
+        self.target_nets = [DQN(state_size, action_size).to(device) for _ in range(num_agents)]
+
         self.optimizers = [optim.Adam(net.parameters(), lr=LEARNING_RATE) for net in self.policy_nets]
         for i in range(num_agents):
             self.target_nets[i].load_state_dict(self.policy_nets[i].state_dict())
@@ -159,7 +160,7 @@ class MultiAgentRL:
     def act(self, state_vec: np.ndarray, agent_idx: int) -> int:
         if random.random() <= self.epsilon:
             return random.randrange(len(self.policy_nets[agent_idx].fc3.weight))
-        state = torch.FloatTensor(state_vec).unsqueeze(0)
+        state = torch.FloatTensor(state_vec).unsqueeze(0).to(device)
         with torch.no_grad():
             q = self.policy_nets[agent_idx](state)
         return torch.argmax(q).item()
@@ -173,11 +174,11 @@ class MultiAgentRL:
             return
         batch = random.sample(self.memory, self.batch_size)
         states, actions, rewards, next_states, dones = zip(*batch)
-        states = torch.FloatTensor(np.array(states))
-        actions = torch.LongTensor(actions)
-        rewards = torch.FloatTensor(rewards)
-        next_states = torch.FloatTensor(np.array(next_states))
-        dones = torch.FloatTensor(dones)
+        states = torch.FloatTensor(np.array(states)).to(device)
+        actions = torch.LongTensor(actions).to(device)
+        rewards = torch.FloatTensor(rewards).to(device)
+        next_states = torch.FloatTensor(np.array(next_states)).to(device)
+        dones = torch.FloatTensor(dones).to(device)
 
         for i in range(self.num_agents):
             q_vals = self.policy_nets[i](states).gather(1, actions.unsqueeze(1)).squeeze()

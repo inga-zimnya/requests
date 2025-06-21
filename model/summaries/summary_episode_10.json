@@ -1,6 +1,6 @@
 {
   "type": "experiment_summary",
-  "timestamp": "2025-06-21T10:26:16.697062Z",
+  "timestamp": "2025-06-21T11:54:49.762355Z",
   "experiment_number": 10,
   "parameters": {
     "input_parameters": {
@@ -34,10 +34,10 @@
   },
   "metrics": {
     "total_rewards": [
-      19.96491868446399,
-      18.797392662108578
+      42.69787162345309,
+      9.369337903267624
     ],
-    "duration": 2.086697578430176,
+    "duration": 3.736417055130005,
     "episode_count": 10,
     "wins": [
       1,
