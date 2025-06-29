@@ -24,15 +24,15 @@
         "target_update_interval": 10
     },
     "rewards": {
-        "movement_reward_weight": 0.1,
-        "pickup_distance_reward_weight": 0.5,
-        "gun_pickup_reward": 30.0,
+        "movement_reward_weight": 0.5,
+        "pickup_distance_reward_weight": 0.8,
+        "gun_pickup_reward": 40.0,
         "gun_possession_reward": 3,
         "enemy_elimination_reward": 40.0,
         "survival_reward": 0.1,
         "rotation_reward_weight": 10.0,
-        "shooting_reward": 5.0,
-        "kick_near_glass_reward": 10.0,
+        "shooting_reward": 50.0,
+        "kick_near_glass_reward": 30.0,
         "look_toward_target_reward_weight": 10.0
     },
     "actions": {

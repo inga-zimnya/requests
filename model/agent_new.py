@@ -80,10 +80,10 @@ def extract_input_parameters(config: dict) -> dict:
         "characters": config.get("general", {}).get("desired_characters", []),
         "server_url": config.get("general", {}).get("server_url", ""),
         "rewards": config.get("rewards", {}),
-        "epsilon_decay": config.get("training", {}).get("epsilon_decay"),
-        "learning_rate": config.get("training", {}).get("learning_rate"),
-        "batch_size": config.get("training", {}).get("batch_size"),
-        "target_update_interval": config.get("training", {}).get("target_update_interval")
+        "epsilon_decay": config.get("dqn", {}).get("epsilon_decay"),
+        "learning_rate": config.get("dqn", {}).get("learning_rate"),
+        "batch_size": config.get("dqn", {}).get("batch_size"),
+        "target_update_interval": config.get("dqn", {}).get("target_update_interval")
     }
 
 
@@ -209,29 +209,43 @@ class StateProcessor:
 
         p = game_state.players[agent_id]
         feat = []
-        feat.extend(p['position'])
-        feat.append(p['rotation'])
-        feat.append(1 if p['is_shooting'] else 0)
-        feat.append(1 if p['is_kicking'] else 0)
+        # Safe position parsing
+        position = p.get('position', (0.0, 0.0))
+        feat.extend([float(position[0]), float(position[1])])
 
-        # Cache pickup positions
+        # Safe rotation
+        feat.append(float(p.get('rotation', 0.0)))
+
+        # Safe booleans for input actions
+        feat.append(1 if p.get('is_shooting', False) else 0)
+        feat.append(1 if p.get('is_kicking', False) else 0)
+
+        # Pickup target position (x, y)
         pickups = game_state.pickup_positions()
         if pickups:
-            closest = min(pickups, key=lambda x: math.dist(x, p['position']))
+            closest = min(pickups, key=lambda x: math.dist(x, position))
             feat.extend(closest)
         else:
-            feat.extend([-1, -1])
+            feat.extend([-1.0, -1.0])
 
-        # Cache enemy positions
+        # Enemy target position (x, y)
         enemies = [v for pid, v in game_state.players.items() if pid != agent_id]
         if enemies:
-            ce = min(enemies, key=lambda x: math.dist(x['position'], p['position']))
-            feat.extend(ce['position'])
+            ce = min(enemies, key=lambda x: math.dist(x['position'], position))
+            feat.extend(ce.get('position', [-1.0, -1.0]))
         else:
-            feat.extend([-1, -1])
+            feat.extend([-1.0, -1.0])
 
+        # Pad if not enough features
         if len(feat) < 13:
             feat += [0.0] * (13 - len(feat))
+
+        if DEBUG:
+            print(f"[STATE] Agent {agent_id} position={position}, "
+                  f"rotation={p.get('rotation')}, "
+                  f"is_shooting={p.get('is_shooting')}, "
+                  f"is_kicking={p.get('is_kicking')}, "
+                  f"input_vector={feat}")
 
         return np.array(feat[:13], dtype=np.float32)
 
@@ -482,11 +496,6 @@ def run_training_loop(server_url: str = SERVER_URL, logger: UnifiedLogger = logg
                                     "y": movement.get("direction", (0.0, 0.0))[1]
                                 }
                             },
-                            "calculated_velocity": {
-                                "x": calc_velocity[0] if calc_velocity else None,
-                                "y": calc_velocity[1] if calc_velocity else None
-                            },
-                            "calculated_speed": player.get("calculated_speed", None),
                             "is_shooting": bool(player.get("is_shooting", False)),
                             "is_kicking": bool(player.get("is_kicking", False)),
                             "is_moving": bool(player.get("is_moving", False)),

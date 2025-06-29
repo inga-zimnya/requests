@@ -1,6 +1,6 @@
 {
   "type": "experiment_summary",
-  "timestamp": "2025-06-20T20:19:14.513094Z",
+  "timestamp": "2025-06-23T10:16:04.771155Z",
   "experiment_number": 458,
   "parameters": {
     "input_parameters": {
@@ -13,18 +13,18 @@
         "movement_reward_weight": 0.1,
         "pickup_distance_reward_weight": 0.5,
         "gun_pickup_reward": 30.0,
-        "gun_possession_reward": 0.8,
+        "gun_possession_reward": 3,
         "enemy_elimination_reward": 40.0,
         "survival_reward": 0.1,
         "rotation_reward_weight": 10.0,
         "shooting_reward": 5.0,
-        "kick_near_glass_reward": 50.0,
-        "look_toward_target_reward_weight": 8.0
+        "kick_near_glass_reward": 10.0,
+        "look_toward_target_reward_weight": 10.0
       },
-      "epsilon_decay": null,
-      "learning_rate": null,
-      "batch_size": null,
-      "target_update_interval": null
+      "epsilon_decay": 0.995,
+      "learning_rate": 0.001,
+      "batch_size": 32,
+      "target_update_interval": 10
     },
     "characters": [
       "Lime",
@@ -34,14 +34,14 @@
   },
   "metrics": {
     "total_rewards": [
-      22.789357694358547,
-      12.905455431339982
+      12.534562091499494,
+      23.512021921473565
     ],
-    "duration": 2.1880381107330322,
+    "duration": 3.0151591300964355,
     "episode_count": 458,
     "wins": [
-      1,
-      0
+      0,
+      1
     ]
   },
   "snapshots": []
